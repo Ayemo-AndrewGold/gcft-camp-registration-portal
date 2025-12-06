@@ -1,6 +1,11 @@
+
+
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Lexend } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
+import ChatWidget from "@/components/ChatWidget";
+import "react-toastify/dist/ReactToastify.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,11 +17,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const lexend = Lexend({
+  subsets: ["latin"],
+  variable: "--font-lexend",
+});
+
 export const metadata: Metadata = {
   title: "GCFT CAMP PORTAL",
   description: "Comprehensive digital platform for managing online camp registration.",
   icons: {
-    icon: "/icons/logo.svg",
+    icon: "/images/gcftLogo.png",
   },
   metadataBase: new URL("https://gcftcampregistrationportal.com"),
   openGraph: {
@@ -26,7 +36,7 @@ export const metadata: Metadata = {
     siteName: "GCFT CAMP PORTAL",
     images: [
       {
-        url: "/icons/logo.svg", 
+        url: "/icons/logo.svg",
         width: 1200,
         height: 630,
         alt: "GCFT CAMP PORTAL",
@@ -39,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GCFT CAMP PORTAL",
     description: "Comprehensive digital platform for managing online camp registration.",
-    images: ["/icon/gcftLogo.svg"],
+    images: ["/images/gcftLogo.png"],
   },
   robots: {
     index: true,
@@ -55,9 +65,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${lexend.variable} antialiased`}
       >
         {children}
+        {/* Safe Toaster */}
+        <Toaster position="top-right" reverseOrder={false} />
+        <ChatWidget />
       </body>
     </html>
   );

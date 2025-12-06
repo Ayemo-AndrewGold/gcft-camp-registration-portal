@@ -1,9 +1,14 @@
-import React from 'react'
+
+
+import Image from 'next/image'
+
 
 const Status = () => {
-  return (
-    <div>Status</div>
-  )
-}
 
-export default Status
+  return (
+    <section >
+    </section> 
+  );
+};
+
+export default Status;
