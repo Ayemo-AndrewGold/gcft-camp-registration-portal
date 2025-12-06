@@ -211,7 +211,7 @@ const SuccessfulReg: React.FC = () => {
 
       <div
         ref={ticketRef}
-        className="relative bg-gradient-to-br from-green-400 to-blue-500 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center text-center p-8 space-y-6 z-10"
+        className="relative bg-linear-to-br from-green-400 to-blue-500 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center text-center p-8 space-y-6 z-10"
       >
         <Image
           src="/images/congratIcon.svg"

@@ -1,11 +1,11 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 const AlreadyRegistered = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleRegisterClick = () => {
-    navigate("/register");
+    router.push("/register");
   };
   return (
     <section className="flex pt-10 flex-col items-center justify-center">
