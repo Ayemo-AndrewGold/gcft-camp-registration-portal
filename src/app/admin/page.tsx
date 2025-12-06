@@ -367,7 +367,7 @@ const AdminDashboard: React.FC = () => {
                     paddingAngle={3}
                     dataKey="value"
                     nameKey="name"
-                    label={({ percentage }: { percentage: string }) => `${percentage}%`}
+                    label={(props: any) => `${props.percent ? (props.percent * 100).toFixed(1) : 0}%`}
                     labelLine={false}
                   >
                     {hallData.map((entry, index) => (
