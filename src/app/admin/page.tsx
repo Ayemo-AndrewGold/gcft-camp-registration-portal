@@ -14,6 +14,7 @@ interface HallData {
   total: number;
   percentage: string;
   color: string;
+  [key: string]: string | number;
 }
 
 interface Category {
@@ -129,7 +130,7 @@ const AdminDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+      <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
         <section className="bg-white min-h-screen rounded-lg shadow-md p-5 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -141,7 +142,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
       <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
@@ -164,7 +165,7 @@ const AdminDashboard: React.FC = () => {
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           {/* Total Bedspace */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Total Bedspace</h4>
               <Building2 className="w-8 h-8 opacity-80" />
@@ -174,7 +175,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Total Registered */}
-          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Registered Users</h4>
               <UserCheck className="w-8 h-8 opacity-80" />
@@ -184,7 +185,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Occupancy Rate */}
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Occupancy Rate</h4>
               <TrendingUp className="w-8 h-8 opacity-80" />
@@ -194,7 +195,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Available Beds */}
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Available Beds</h4>
               <Bed className="w-8 h-8 opacity-80" />
@@ -269,7 +270,7 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             {/* System Status */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl shadow-sm p-6">
+            <div className="bg-linear-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl shadow-sm p-6">
               <h4 className="text-sm font-semibold text-gray-700 mb-4">System Status</h4>
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -352,7 +353,7 @@ const AdminDashboard: React.FC = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
           {/* Hall Occupancy Donut Chart */}
-          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
+          <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
               Hall Occupancy Distribution
             </h3>
@@ -388,7 +389,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Category Bar Chart */}
-          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
+          <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
               Category Distribution
             </h3>
@@ -421,7 +422,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Hall Legend & Detailed Info */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
+          <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Hall Details</h3>
             <div className="space-y-3">
               {hallData.map((hall, idx) => (
@@ -431,7 +432,7 @@ const AdminDashboard: React.FC = () => {
                 >
                   <div className="flex items-center space-x-3">
                     <span
-                      className="w-6 h-6 rounded-md flex-shrink-0"
+                      className="w-6 h-6 rounded-md shrink-0"
                       style={{ backgroundColor: hall.color }}
                     ></span>
                     <div>
@@ -455,14 +456,14 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Quick Actions / Alerts */}
-          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
+          <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-4">System Insights</h3>
             <div className="space-y-4">
               {/* Capacity Alert */}
               {parseFloat(overallPercentage) > 90 && (
                 <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-sm font-semibold text-red-800">High Occupancy Alert</h4>
                       <p className="text-xs text-red-700 mt-1">
@@ -477,7 +478,7 @@ const AdminDashboard: React.FC = () => {
               {parseFloat(overallPercentage) < 50 && (
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
                   <div className="flex items-start gap-3">
-                    <TrendingUp className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <TrendingUp className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-sm font-semibold text-blue-800">Registration Ongoing</h4>
                       <p className="text-xs text-blue-700 mt-1">
@@ -491,7 +492,7 @@ const AdminDashboard: React.FC = () => {
               {/* Gender Balance Info */}
               <div className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
                 <div className="flex items-start gap-3">
-                  <Users className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                  <Users className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-semibold text-purple-800">Gender Distribution</h4>
                     <p className="text-xs text-purple-700 mt-1">
@@ -505,7 +506,7 @@ const AdminDashboard: React.FC = () => {
               {/* Summary Stats */}
               <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-semibold text-green-800">Registration Summary</h4>
                     <p className="text-xs text-green-700 mt-1">
