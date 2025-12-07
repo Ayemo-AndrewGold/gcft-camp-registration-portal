@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import React, { useState, useEffect, ChangeEvent, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
@@ -155,7 +155,7 @@ const FormField: React.FC<FormFieldProps> = ({
 // --------------------------------------------
 // Main Component
 // --------------------------------------------
-export default function Register2() {
+function Register2Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -452,5 +452,20 @@ export default function Register2() {
         </div>
       </div>
     </section>
+  );
+}
+
+export default function Register2() {
+  return (
+    <Suspense fallback={
+      <div className="w-full min-h-screen flex items-center justify-center bg-green-800">
+        <div className="text-center">
+          <div className="animate-spin h-16 w-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading registration form...</p>
+        </div>
+      </div>
+    }>
+      <Register2Content />
+    </Suspense>
   );
 }
