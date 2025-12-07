@@ -26,17 +26,17 @@ export const metadata: Metadata = {
   title: "GCFT CAMP PORTAL",
   description: "Comprehensive digital platform for managing online camp registration.",
   icons: {
-    icon: "/images/gcftLogo.png",
+    icon: "/gcftLogo.png",
   },
-  metadataBase: new URL("https://gcftcampregistrationportal.com"),
+  metadataBase: new URL("https://gcft-camp-registration-portal.vercel.app/"),
   openGraph: {
     title: "GCFT CAMP PORTAL",
     description: "Comprehensive digital platform for managing online camp registration.",
-    url: "https://gcftcampregistrationportal.com",
+    url: "https://gcft-camp-registration-portal.vercel.app/",
     siteName: "GCFT CAMP PORTAL",
     images: [
       {
-        url: "/images/gcftLogo.png",
+        url: "/gcftLogo.png",
         width: 1200,
         height: 630,
         alt: "GCFT CAMP PORTAL",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GCFT CAMP PORTAL",
     description: "Comprehensive digital platform for managing online camp registration.",
-    images: ["/images/gcftLogo.png"],
+    images: ["/gcftLogo.png"],
   },
   robots: {
     index: true,
