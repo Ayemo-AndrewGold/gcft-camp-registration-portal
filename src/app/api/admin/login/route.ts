@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     // Validate credentials
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       // Set httpOnly cookie for security
-      cookies().set({
+      const cookieStore = await cookies();
+      cookieStore.set({
         name: 'adminToken',
         value: 'authenticated_' + Date.now(),
         httpOnly: true,

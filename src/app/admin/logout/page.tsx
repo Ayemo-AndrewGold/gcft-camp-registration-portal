@@ -16,7 +16,7 @@ const AdminLogout = () => {
   };
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
       <section className="bg-white h-screen rounded-lg shadow-md p-5 flex flex-col items-center justify-center">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Logout</h1>
 
