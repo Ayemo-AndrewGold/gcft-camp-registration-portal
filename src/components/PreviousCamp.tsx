@@ -34,7 +34,7 @@ const PreviousCamp = () => {
   ];
 
   return (
-    <section className="w-full bg-gradient-to-br from-[#F4FFED] to-[#E8F5E0] font-[lexend] py-16 px-4 sm:px-16">
+    <section className="w-full bg-gradient-to-br from-[#F4FFED] to-[#E8F5E0] font-[lexend] py-8 px-4 mt-10 sm:px-16">
       <div className="max-w-[1440px] mx-auto">
         {/* Heading with subtitle */}
         <div className="text-center mb-12">
