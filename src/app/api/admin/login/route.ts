@@ -1,42 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-// Replace these with your actual admin credentials
-// In production, these should be environment variables and hashed
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@gcftcamp.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin12345";
-
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const { email, password } = await request.json();
+    // Delete the auth cookie
+    const cookieStore = await cookies();
+    cookieStore.delete('adminToken');
 
-    // Validate credentials
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      // Set httpOnly cookie for security
-      const cookieStore = await cookies();
-      cookieStore.set({
-        name: 'adminToken',
-        value: 'authenticated_' + Date.now(),
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24, // 24 hours
-        path: '/',
-      });
-
-      return NextResponse.json({ 
-        success: true,
-        message: 'Login successful' 
-      });
-    }
-
-    return NextResponse.json(
-      { error: 'Invalid credentials' },
-      { status: 401 }
-    );
+    return NextResponse.json({ 
+      success: true,
+      message: 'Logged out successfully' 
+    });
   } catch (error) {
     return NextResponse.json(
-      { error: 'An error occurred' },
+      { error: 'An error occurred during logout' },
       { status: 500 }
     );
   }
