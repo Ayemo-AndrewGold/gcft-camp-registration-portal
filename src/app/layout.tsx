@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     siteName: "GCFT CAMP PORTAL",
     images: [
       {
-        url: "/icons/logo.svg",
+        url: "/images/gcftLogo.png",
         width: 1200,
         height: 630,
         alt: "GCFT CAMP PORTAL",
