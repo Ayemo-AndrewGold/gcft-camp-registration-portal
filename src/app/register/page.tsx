@@ -22,54 +22,75 @@ const Register: React.FC = () => {
     return nigeriaRegex.test(cleaned) || intlRegex.test(cleaned);
   };
 
-  const handleRegister = async () => {
-    const cleanedPhone = phone.trim().replace(/\s+/g, "");
-    if (!isValidPhoneNumber(cleanedPhone)) {
-      toast.error("Enter a valid Nigerian or international phone number");
-      return;
-    }
+const handleRegister = async () => {
+  const cleanedPhone = phone.trim().replace(/\s+/g, "");
+  if (!isValidPhoneNumber(cleanedPhone)) {
+    toast.error("Enter a valid Nigerian or international phone number");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      // Only check if user exists - DO NOT create new record here
-      const checkRes = await fetch(
-        `${BASE_URL}/user/${encodeURIComponent(cleanedPhone)}`
-      );
+  setLoading(true);
+  try {
+    // Try to register the phone number
+    const registerRes = await fetch(`${BASE_URL}/register-number`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        phone_number: cleanedPhone,
+      }),
+    });
 
-      if (checkRes.ok) {
-        const existingUser = await checkRes.json();
-        
-        if (existingUser?.id && existingUser?.hall_name) {
-          // Fully registered → go to successfulreg
-          toast.success("🎉 Phone number already registered!");
-          setTimeout(() => {
-            router.push(`/successfulreg?phone=${encodeURIComponent(cleanedPhone)}`);
-          }, 500);
-          return;
-        } else if (existingUser?.id && !existingUser?.hall_name) {
-          // Registration incomplete → go to registration2
-          toast("⚠️ Registration incomplete. Continuing registration...");
-          setTimeout(() => {
-            router.push(`/registeration2?phone=${encodeURIComponent(cleanedPhone)}`);
-          }, 500);
-          return;
-        }
-      }
-
-      // User doesn't exist (404 or other error) - proceed to registration2 WITHOUT saving
-      // The actual registration will happen on registration2 page
+    if (registerRes.ok) {
+      // New registration - proceed to registration2
       toast.success("Let's get you registered!");
       setTimeout(() => {
         router.push(`/registeration2?phone=${encodeURIComponent(cleanedPhone)}`);
       }, 500);
-
-    } catch (error) {
-      console.error("Registration error:", error);
-      toast.error("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    if (registerRes.status === 409) {
+      // Phone already exists - check if full registration is complete
+      try {
+        const checkRes = await fetch(`${BASE_URL}/user/${encodeURIComponent(cleanedPhone)}`);
+
+        if (checkRes.ok) {
+          const existingUser = await checkRes.json();
+          
+          if (existingUser?.hall_name) {
+            // Fully registered with bed allocation → go to successfulreg
+            toast.success("🎉 Phone number already registered!");
+            setTimeout(() => {
+              router.push(`/successfulreg?phone=${encodeURIComponent(cleanedPhone)}`);
+            }, 500);
+            return;
+          }
+        }
+      } catch (err) {
+        console.log("User check failed, proceeding to registration2");
+      }
+
+      // If we get here, either GET failed (404) or no hall_name
+      // Either way, registration is incomplete → continue to registration2
+      toast("⚠️ Registration incomplete. Continuing registration...");
+      setTimeout(() => {
+        router.push(`/registeration2?phone=${encodeURIComponent(cleanedPhone)}`);
+      }, 500);
+      return;
+    }
+
+    // Other error
+    toast.error("Registration failed. Please try again.");
+
+  } catch (error) {
+    console.error("Registration error:", error);
+    toast.error("Network error. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleCheckStatus = async () => {
     const cleanedPhone = phone.trim().replace(/\s+/g, "");

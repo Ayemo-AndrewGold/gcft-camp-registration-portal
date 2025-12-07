@@ -9,7 +9,7 @@ import { z } from "zod";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(5, "Password must be at least 5 characters"),
 });
 
 const BACKGROUND_IMAGES: string[] = [
@@ -31,7 +31,7 @@ interface ErrorState {
   password?: string;
 }
 
-const AdminLoginPage: React.FC = () => {
+const AdminLogin: React.FC = () => {
   const [bgIndex, setBgIndex] = React.useState(0);
 
   React.useEffect(() => {
@@ -79,7 +79,7 @@ const AdminLoginPage: React.FC = () => {
   );
 };
 
-export default AdminLoginPage;
+export default AdminLogin;
 
 const AuthHeader: React.FC = () => (
   <header className="flex items-center justify-between font-[lexend]">
@@ -159,8 +159,8 @@ const LoginCard: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to dashboard - middleware will handle the rest
-        router.push('/admin/dashboard');
+        // Redirect to dashboard
+        router.push('/admin');
         router.refresh();
       } else {
         setLoginError(data.error || "Invalid email or password");

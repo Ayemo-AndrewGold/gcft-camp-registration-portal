@@ -290,8 +290,8 @@ function Register2Content() {
     formData.state && 
     !dateError;
 
-  // Submit handler
-  const handleSubmit = async (e: FormEvent) => {
+    // Submit handler
+    const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isFormValid) {
       toast.error("Please fill all required fields");
@@ -320,7 +320,9 @@ function Register2Content() {
 
       console.log("Submitting data:", submitData);
 
-      const res = await fetch(`${BASE_URL}/register-user/${phone}`, {
+      // Register the full user details directly
+      // Phone number should already be registered from register page
+      const res = await fetch(`${BASE_URL}/register-user/${encodeURIComponent(phone)}`, {
         method: "POST",
         body: JSON.stringify(submitData),
         headers: { "Content-Type": "application/json" },
@@ -353,7 +355,7 @@ function Register2Content() {
     } finally {
       setLoading(false);
     }
-  };
+    };
 
   // --------------------------------------------
   // UI

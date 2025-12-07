@@ -132,39 +132,51 @@ const HostelManagement: React.FC = () => {
   };
 
   // Add Category
-  const addCategory = async () => {
-    if (!categoryName || !categoryHall) {
-      showToast("Category name & hall required", 'error');
-      return;
+const addCategory = async () => {
+  if (!categoryName || !categoryHall) {
+    showToast("Category name & hall required", 'error');
+    return;
+  }
+
+  // Validate numeric fields
+  if (!floorAllocated || !catBeds) {
+    showToast("Floor and beds are required", 'error');
+    return;
+  }
+
+  const newCat = {
+    category_name: categoryName,
+    hall_name: categoryHall,
+    floor_allocated: [Number(floorAllocated)], // ARRAY - Back to original!
+    no_beds: Number(catBeds),
+  }; // Single object, NOT array
+
+  console.log("Sending category data:", newCat);
+
+  try {
+    const res = await fetch(`${API_BASE}/category/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCat),
+    });
+
+    if (!res.ok) {
+      const responseText = await res.text();
+      console.log("Error response:", responseText);
+      throw new Error(`HTTP error! status: ${res.status}`);
     }
 
-    const newCat = {
-      category_name: categoryName,
-      hall_name: categoryHall,
-      floor_allocated: [Number(floorAllocated)],
-      no_beds: Number(catBeds),
-    };
-
-    try {
-      const res = await fetch(`${API_BASE}/category/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCat),
-      });
-
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-      showToast("✅ Category added successfully!", 'success');
-      fetchCategories();
-      setCategoryName("");
-      setCategoryHall("");
-      setFloorAllocated("");
-      setCatBeds("");
-    } catch (err: any) {
-      console.error(err);
-      showToast("Failed to add category", 'error');
-    }
-  };
+    showToast("✅ Category added successfully!", 'success');
+    fetchCategories();
+    setCategoryName("");
+    setCategoryHall("");
+    setFloorAllocated("");
+    setCatBeds("");
+  } catch (err: any) {
+    console.error(err);
+    showToast("Failed to add category", 'error');
+  }
+};
 
   // Delete Category
   const deleteCategory = async (id: number | string) => {
