@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import jsPDF from "jspdf";
 import toast from "react-hot-toast";
@@ -22,7 +22,7 @@ const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "https://gcft-camp.onrender.com/api/v1";
 
-const SuccessfulReg: React.FC = () => {
+const SuccessfulRegContent: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -313,6 +313,21 @@ const SuccessfulReg: React.FC = () => {
         </button>
       </div>
     </section>
+  );
+};
+
+const SuccessfulReg: React.FC = () => {
+  return (
+    <Suspense fallback={
+      <div className="w-full min-h-screen flex items-center justify-center bg-green-800">
+        <div className="text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading your ticket...</p>
+        </div>
+      </div>
+    }>
+      <SuccessfulRegContent />
+    </Suspense>
   );
 };
 
