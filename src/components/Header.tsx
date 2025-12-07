@@ -33,7 +33,7 @@ const Header = () => {
             alt="gcft Logo"
             width={60}
             height={60}
-            className="object-contain"
+            className="w-auto h-auto object-contain"
           />
         </Link>
 
