@@ -3,11 +3,15 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import countryList, { CountryData } from "react-select-country-list";
 
 // --------------------------------------------
 // Types
 // --------------------------------------------
+interface CountryData {
+  value: string;
+  label: string;
+}
+
 interface FieldType {
   id: string;
   label: string;
@@ -22,6 +26,58 @@ interface FormFieldProps extends FieldType {
   error?: string;
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 }
+
+// --------------------------------------------
+// Countries List
+// --------------------------------------------
+const countriesList: CountryData[] = [
+  { value: "Nigeria", label: "Nigeria" },
+  { value: "Ghana", label: "Ghana" },
+  { value: "South Africa", label: "South Africa" },
+  { value: "Kenya", label: "Kenya" },
+  { value: "USA", label: "United States" },
+  { value: "UK", label: "United Kingdom" },
+  { value: "Canada", label: "Canada" },
+  { value: "India", label: "India" },
+  { value: "Australia", label: "Australia" },
+  { value: "Germany", label: "Germany" },
+  { value: "France", label: "France" },
+  { value: "Italy", label: "Italy" },
+  { value: "Spain", label: "Spain" },
+  { value: "Brazil", label: "Brazil" },
+  { value: "Mexico", label: "Mexico" },
+  { value: "China", label: "China" },
+  { value: "Japan", label: "Japan" },
+  { value: "South Korea", label: "South Korea" },
+  { value: "Singapore", label: "Singapore" },
+  { value: "United Arab Emirates", label: "United Arab Emirates" },
+  { value: "Saudi Arabia", label: "Saudi Arabia" },
+  { value: "Egypt", label: "Egypt" },
+  { value: "Morocco", label: "Morocco" },
+  { value: "Algeria", label: "Algeria" },
+  { value: "Tunisia", label: "Tunisia" },
+  { value: "Ethiopia", label: "Ethiopia" },
+  { value: "Uganda", label: "Uganda" },
+  { value: "Tanzania", label: "Tanzania" },
+  { value: "Rwanda", label: "Rwanda" },
+  { value: "Zambia", label: "Zambia" },
+  { value: "Zimbabwe", label: "Zimbabwe" },
+  { value: "Botswana", label: "Botswana" },
+  { value: "Namibia", label: "Namibia" },
+  { value: "Cameroon", label: "Cameroon" },
+  { value: "Senegal", label: "Senegal" },
+  { value: "Ivory Coast", label: "Ivory Coast" },
+  { value: "Benin", label: "Benin" },
+  { value: "Togo", label: "Togo" },
+  { value: "Burkina Faso", label: "Burkina Faso" },
+  { value: "Mali", label: "Mali" },
+  { value: "Niger", label: "Niger" },
+  { value: "Chad", label: "Chad" },
+  { value: "Liberia", label: "Liberia" },
+  { value: "Sierra Leone", label: "Sierra Leone" },
+  { value: "Guinea", label: "Guinea" },
+  { value: "Gambia", label: "Gambia" },
+];
 
 // --------------------------------------------
 // Country & States
@@ -107,7 +163,6 @@ export default function Register2() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
-  const [countries, setCountries] = useState<CountryData[]>([]);
   const [dateError, setDateError] = useState("");
 
   const BASE_URL =
@@ -143,11 +198,6 @@ export default function Register2() {
       }
     };
     fetchCategories();
-  }, []);
-
-  // Load countries from library
-  useEffect(() => {
-    setCountries(countryList().getData());
   }, []);
 
   // Form change handler
@@ -213,7 +263,7 @@ export default function Register2() {
         { value: "Divorced", label: "Divorced" }
       ],
     },
-    { id: "country", label: "Country", required: true, options: countries },
+    { id: "country", label: "Country", required: true, options: countriesList },
     { id: "arrival_date", label: "Arrival Date", type: "date", required: true },
     { id: "medical_issues", label: "Disability / Allergy", placeholder: "Optional" },
     { id: "local_assembly", label: "Local Assembly", required: true },
@@ -256,7 +306,7 @@ export default function Register2() {
         category: formData.category,
         first_name: formData.first_name,
         gender: formData.gender,
-        age_range: formData.age_range, // FIXED: Use age_range instead of age
+        age_range: formData.age_range,
         marital_status: formData.marital_status,
         no_children: formData.no_children ? parseInt(formData.no_children) : null,
         names_children: formData.names_children || null,
