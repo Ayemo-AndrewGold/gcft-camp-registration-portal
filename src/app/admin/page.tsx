@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend as RechartsLegend } from "recharts";
-import { Users, Building2, Bed, TrendingUp, UserCheck, UserX, Layers, AlertCircle, CheckCircle, Clock, Calendar } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Users, Building2, Bed, TrendingUp, UserCheck, Layers, AlertCircle, CheckCircle, Clock, RefreshCw } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -14,7 +14,6 @@ interface HallData {
   total: number;
   percentage: string;
   color: string;
-  [key: string]: string | number;
 }
 
 interface Category {
@@ -33,6 +32,7 @@ interface UserData {
   category?: string;
   marital_status?: string;
   country?: string;
+  is_active?: boolean;
 }
 
 const AdminDashboard: React.FC = () => {
@@ -41,21 +41,37 @@ const AdminDashboard: React.FC = () => {
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [errors, setErrors] = useState<string[]>([]);
+  const [apiStatus, setApiStatus] = useState<{
+    halls: string;
+    totalUsers: string;
+    allUsers: string;
+  }>({
+    halls: 'pending',
+    totalUsers: 'pending',
+    allUsers: 'pending'
+  });
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    setErrors([]);
+    const errorList: string[] = [];
+
+    try {
+      // Fetch halls data
+      console.log("Fetching halls data...");
+      setApiStatus(prev => ({ ...prev, halls: 'loading' }));
       try {
-        const [hallsRes, usersRes, allUsersRes] = await Promise.all([
-          fetch(`${API_BASE}/analytics/halls`),
-          fetch(`${API_BASE}/analytics/total-users`),
-          fetch(`${API_BASE}/users`),
-        ]);
-
+        const hallsRes = await fetch(`${API_BASE}/analytics/halls`);
+        console.log("Halls response status:", hallsRes.status);
+        
+        if (!hallsRes.ok) {
+          throw new Error(`Halls API failed with status ${hallsRes.status}`);
+        }
+        
         const hallsData = await hallsRes.json();
-        const usersData = await usersRes.json();
-        const allUsersData = await allUsersRes.json();
+        console.log("Halls data received:", hallsData);
 
-        // Transform halls data
         const transformedHalls: HallData[] = hallsData.map((hall: HallResponse, idx: number) => {
           const occupied = hall.categories.reduce(
             (sum, c) => sum + (c.beds_allocated || 0),
@@ -73,16 +89,73 @@ const AdminDashboard: React.FC = () => {
         });
 
         setHallData(transformedHalls);
-        setTotalUsers(usersData.total_users);
-        setAllUsers(allUsersData);
-        setLastUpdated(new Date().toLocaleString());
-      } catch (err) {
-        console.error("Error fetching analytics:", err);
-      } finally {
-        setLoading(false);
+        setApiStatus(prev => ({ ...prev, halls: 'success' }));
+      } catch (err: any) {
+        console.error("Halls fetch error:", err);
+        errorList.push(`Halls API: ${err.message}`);
+        setApiStatus(prev => ({ ...prev, halls: 'error' }));
       }
-    };
 
+      // Fetch total users
+      console.log("Fetching total users...");
+      setApiStatus(prev => ({ ...prev, totalUsers: 'loading' }));
+      try {
+        const usersRes = await fetch(`${API_BASE}/analytics/total-users`);
+        console.log("Total users response status:", usersRes.status);
+        
+        if (!usersRes.ok) {
+          throw new Error(`Total users API failed with status ${usersRes.status}`);
+        }
+        
+        const usersData = await usersRes.json();
+        console.log("Total users data received:", usersData);
+        
+        setTotalUsers(usersData.total_users || 0);
+        setApiStatus(prev => ({ ...prev, totalUsers: 'success' }));
+      } catch (err: any) {
+        console.error("Total users fetch error:", err);
+        errorList.push(`Total Users API: ${err.message}`);
+        setApiStatus(prev => ({ ...prev, totalUsers: 'error' }));
+      }
+
+      // Fetch all users
+      console.log("Fetching all users...");
+      setApiStatus(prev => ({ ...prev, allUsers: 'loading' }));
+      try {
+        const allUsersRes = await fetch(`${API_BASE}/users`);
+        console.log("All users response status:", allUsersRes.status);
+        
+        if (!allUsersRes.ok) {
+          throw new Error(`All users API failed with status ${allUsersRes.status}`);
+        }
+        
+        const allUsersData = await allUsersRes.json();
+        console.log("All users data received:", allUsersData);
+        console.log("Number of users:", allUsersData.length);
+        
+        if (!Array.isArray(allUsersData)) {
+          throw new Error("All users data is not an array");
+        }
+        
+        setAllUsers(allUsersData);
+        setApiStatus(prev => ({ ...prev, allUsers: 'success' }));
+      } catch (err: any) {
+        console.error("All users fetch error:", err);
+        errorList.push(`All Users API: ${err.message}`);
+        setApiStatus(prev => ({ ...prev, allUsers: 'error' }));
+      }
+
+      setErrors(errorList);
+      setLastUpdated(new Date().toLocaleString());
+    } catch (err: any) {
+      console.error("General error:", err);
+      setErrors([...errorList, `General error: ${err.message}`]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAnalytics();
   }, []);
 
@@ -98,6 +171,10 @@ const AdminDashboard: React.FC = () => {
   const maleCount = allUsers.filter(u => u.gender?.toLowerCase() === 'male').length;
   const femaleCount = allUsers.filter(u => u.gender?.toLowerCase() === 'female').length;
   
+  // Active/Pending users
+  const activeUsers = allUsers.filter(u => u.is_active === true).length;
+  const pendingUsers = allUsers.filter(u => !u.is_active).length;
+
   // Category statistics
   const categoryStats = allUsers.reduce((acc, user) => {
     const cat = user.category || 'Uncategorized';
@@ -134,7 +211,12 @@ const AdminDashboard: React.FC = () => {
         <section className="bg-white min-h-screen rounded-lg shadow-md p-5 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">Loading analytics...</p>
+            <p className="text-gray-600 text-lg mb-4">Loading analytics...</p>
+            <div className="text-sm text-gray-500 space-y-1">
+              <p>Halls: <span className={`font-semibold ${apiStatus.halls === 'success' ? 'text-green-600' : apiStatus.halls === 'error' ? 'text-red-600' : 'text-yellow-600'}`}>{apiStatus.halls}</span></p>
+              <p>Total Users: <span className={`font-semibold ${apiStatus.totalUsers === 'success' ? 'text-green-600' : apiStatus.totalUsers === 'error' ? 'text-red-600' : 'text-yellow-600'}`}>{apiStatus.totalUsers}</span></p>
+              <p>All Users: <span className={`font-semibold ${apiStatus.allUsers === 'success' ? 'text-green-600' : apiStatus.allUsers === 'error' ? 'text-red-600' : 'text-yellow-600'}`}>{apiStatus.allUsers}</span></p>
+            </div>
           </div>
         </section>
       </div>
@@ -155,17 +237,54 @@ const AdminDashboard: React.FC = () => {
                 Easter Camp Meeting 2026 - Complete Analytics Overview
               </p>
             </div>
-            <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
-              <Clock className="w-4 h-4 text-green-600" />
-              <span className="text-sm text-gray-600">Last updated: {lastUpdated}</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
+                <Clock className="w-4 h-4 text-green-600" />
+                <span className="text-sm text-gray-600">Last updated: {lastUpdated}</span>
+              </div>
+              <button
+                onClick={fetchAnalytics}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </button>
             </div>
+          </div>
+        </div>
+
+        {/* Error Display */}
+        {errors.length > 0 && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-red-800 mb-2">API Errors Detected</h4>
+                <ul className="text-xs text-red-700 space-y-1">
+                  {errors.map((error, idx) => (
+                    <li key={idx}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Debug Info */}
+        <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+          <h4 className="text-sm font-semibold text-blue-800 mb-2">Debug Information</h4>
+          <div className="text-xs text-blue-700 space-y-1">
+            <p>• API Base URL: {API_BASE}</p>
+            <p>• Total Users Fetched: {allUsers.length}</p>
+            <p>• Total Halls: {hallData.length}</p>
+            <p>• Active Users: {activeUsers}</p>
+            <p>• Pending Users: {pendingUsers}</p>
           </div>
         </div>
 
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          {/* Total Bedspace */}
-          <div className="bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Total Bedspace</h4>
               <Building2 className="w-8 h-8 opacity-80" />
@@ -174,8 +293,7 @@ const AdminDashboard: React.FC = () => {
             <p className="text-xs mt-2 opacity-90">Total available beds</p>
           </div>
 
-          {/* Total Registered */}
-          <div className="bg-linear-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Registered Users</h4>
               <UserCheck className="w-8 h-8 opacity-80" />
@@ -184,8 +302,7 @@ const AdminDashboard: React.FC = () => {
             <p className="text-xs mt-2 opacity-90">Total registrations</p>
           </div>
 
-          {/* Occupancy Rate */}
-          <div className="bg-linear-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Occupancy Rate</h4>
               <TrendingUp className="w-8 h-8 opacity-80" />
@@ -194,8 +311,7 @@ const AdminDashboard: React.FC = () => {
             <p className="text-xs mt-2 opacity-90">{totalOccupied} of {totalBedspace} beds</p>
           </div>
 
-          {/* Available Beds */}
-          <div className="bg-linear-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Available Beds</h4>
               <Bed className="w-8 h-8 opacity-80" />
@@ -243,6 +359,36 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Verification Status */}
+            <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
+              <h4 className="text-sm font-semibold text-gray-600 mb-4">Verification Status</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-gray-700">Verified</span>
+                  </div>
+                  <span className="text-sm font-bold text-green-600">{activeUsers}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-orange-600" />
+                    <span className="text-sm text-gray-700">Pending</span>
+                  </div>
+                  <span className="text-sm font-bold text-orange-600">{pendingUsers}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${allUsers.length > 0 ? (activeUsers / allUsers.length * 100).toFixed(1) : 0}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 text-right">
+                  {allUsers.length > 0 ? ((activeUsers / allUsers.length * 100).toFixed(1)) : 0}% Verified
+                </p>
+              </div>
+            </div>
+
             {/* Marital Status */}
             <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm p-6">
               <h4 className="text-sm font-semibold text-gray-600 mb-4">Marital Status</h4>
@@ -268,254 +414,66 @@ const AdminDashboard: React.FC = () => {
                 ))}
               </div>
             </div>
-
-            {/* System Status */}
-            <div className="bg-linear-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl shadow-sm p-6">
-              <h4 className="text-sm font-semibold text-gray-700 mb-4">System Status</h4>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                  <span className="text-sm text-gray-700">All Systems Operational</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm text-gray-700">{hallData.length} Halls Active</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm text-gray-700">{categoryData.length} Categories</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {parseFloat(overallPercentage) < 100 ? (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-orange-600" />
-                  )}
-                  <span className="text-sm text-gray-700">
-                    {parseFloat(overallPercentage) < 100 ? 'Space Available' : 'Fully Booked'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Hall Statistics */}
-        <div className="mb-10">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-blue-600" />
-            Hall Statistics
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {hallData.map((hall, idx) => (
-              <div
-                key={idx}
-                className="bg-white border-2 border-gray-200 rounded-lg shadow-sm p-5 hover:shadow-lg transition-shadow duration-200"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-lg font-semibold text-gray-800">{hall.name}</h4>
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: hall.color }}
-                  ></div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Occupied:</span>
-                    <span className="font-semibold text-gray-800">{hall.value}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Available:</span>
-                    <span className="font-semibold text-gray-800">{hall.total - hall.value}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total:</span>
-                    <span className="font-semibold text-gray-800">{hall.total}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-3">
-                    <div
-                      className="h-2.5 rounded-full transition-all duration-500"
-                      style={{
-                        width: `${hall.percentage}%`,
-                        backgroundColor: hall.color,
-                      }}
-                    ></div>
-                  </div>
-                  <p className="text-right text-sm font-semibold" style={{ color: hall.color }}>
-                    {hall.percentage}% Full
-                  </p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-          {/* Hall Occupancy Donut Chart */}
+          {/* Hall Occupancy Chart */}
           <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
               Hall Occupancy Distribution
             </h3>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={hallData}
-                    innerRadius={70}
-                    outerRadius={110}
-                    paddingAngle={3}
-                    dataKey="value"
-                    nameKey="name"
-                    label={(props: any) => `${props.percent ? (props.percent * 100).toFixed(1) : 0}%`}
-                    labelLine={false}
-                  >
-                    {hallData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(val: number) => [`${val} beds`, 'Occupied']}
-                    contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      padding: '8px 12px'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {hallData.length > 0 ? (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={hallData}
+                      innerRadius={70}
+                      outerRadius={110}
+                      paddingAngle={3}
+                      dataKey="value"
+                      nameKey="name"
+                      label={(props: any) => `${props.percent ? (props.percent * 100).toFixed(1) : 0}%`}
+                    >
+                      {hallData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-gray-400">
+                <p>No hall data available</p>
+              </div>
+            )}
           </div>
 
-          {/* Category Bar Chart */}
+          {/* Category Chart */}
           <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
               Category Distribution
             </h3>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      padding: '8px 12px'
-                    }}
-                  />
-                  <Bar dataKey="value" fill="#22c55e" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Hall Legend & Detailed Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Hall Details</h3>
-            <div className="space-y-3">
-              {hallData.map((hall, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span
-                      className="w-6 h-6 rounded-md shrink-0"
-                      style={{ backgroundColor: hall.color }}
-                    ></span>
-                    <div>
-                      <span className="font-semibold text-gray-800 block">
-                        {hall.name}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {hall.value} / {hall.total} beds occupied
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className="text-lg font-bold"
-                    style={{ color: hall.color }}
-                  >
-                    {hall.percentage}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Actions / Alerts */}
-          <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-lg p-6 border border-gray-200">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">System Insights</h3>
-            <div className="space-y-4">
-              {/* Capacity Alert */}
-              {parseFloat(overallPercentage) > 90 && (
-                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-sm font-semibold text-red-800">High Occupancy Alert</h4>
-                      <p className="text-xs text-red-700 mt-1">
-                        Hall capacity is at {overallPercentage}%. Consider preparing overflow arrangements.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Low Occupancy */}
-              {parseFloat(overallPercentage) < 50 && (
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                  <div className="flex items-start gap-3">
-                    <TrendingUp className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-sm font-semibold text-blue-800">Registration Ongoing</h4>
-                      <p className="text-xs text-blue-700 mt-1">
-                        {availableBeds} beds still available. Continue registration campaigns.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Gender Balance Info */}
-              <div className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
-                <div className="flex items-start gap-3">
-                  <Users className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-semibold text-purple-800">Gender Distribution</h4>
-                    <p className="text-xs text-purple-700 mt-1">
-                      Male: {maleCount} ({totalUsers > 0 ? ((maleCount/totalUsers)*100).toFixed(1) : 0}%) | 
-                      Female: {femaleCount} ({totalUsers > 0 ? ((femaleCount/totalUsers)*100).toFixed(1) : 0}%)
-                    </p>
-                  </div>
-                </div>
+            {categoryData.length > 0 ? (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#22c55e" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-
-              {/* Summary Stats */}
-              <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-semibold text-green-800">Registration Summary</h4>
-                    <p className="text-xs text-green-700 mt-1">
-                      {totalUsers} registered participants across {categoryData.length} categories and {hallData.length} halls.
-                    </p>
-                  </div>
-                </div>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-gray-400">
+                <p>No category data available</p>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>

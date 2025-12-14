@@ -20,6 +20,7 @@ interface UserData {
   country?: string;
   state?: string;
   local_assembly?: string;
+  is_active?: boolean;
 }
 
 const UserManagement: React.FC = () => {
@@ -141,24 +142,20 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // Delete category - FIXED VERSION
+  // Delete category
   const handleDeleteCategory = async (user: UserData) => {
-    // Validate category_id exists
     if (!user.category_id) {
       showToast("This user has no category to delete.", 'error');
       return;
     }
 
-    // Confirm deletion
     if (!window.confirm(`Are you sure you want to delete the category "${user.category}" for ${user.first_name || user.phone_number}?`)) {
       return;
     }
 
-    // Add to deleting state
     setDeletingUsers((prev) => [...prev, user.phone_number]);
 
     try {
-      // Make DELETE request
       const response = await fetch(`${API_BASE}/category/${user.category_id}`, {
         method: 'DELETE',
       });
@@ -173,21 +170,18 @@ const UserManagement: React.FC = () => {
       
       showToast("✅ Category deleted successfully!", 'success');
 
-      // Update local state - clear category fields
       const updatedUser = { 
         ...user, 
         category: undefined, 
         category_id: null 
       };
 
-      // Update users array
       setUsers((prev) =>
         prev.map((u) =>
           u.phone_number === user.phone_number ? updatedUser : u
         )
       );
 
-      // Update filtered users array
       setFilteredUsers((prev) =>
         prev.map((u) =>
           u.phone_number === user.phone_number ? updatedUser : u
@@ -199,7 +193,6 @@ const UserManagement: React.FC = () => {
         message: err.message
       });
       
-      // Show more specific error messages
       if (err.message.includes('404')) {
         showToast("❌ Category not found. It may have already been deleted.", 'error');
       } else if (err.message.includes('403')) {
@@ -210,12 +203,15 @@ const UserManagement: React.FC = () => {
         showToast(`❌ Failed to delete category: ${err.message}`, 'error');
       }
     } finally {
-      // Remove from deleting state
       setDeletingUsers((prev) =>
         prev.filter((id) => id !== user.phone_number)
       );
     }
   };
+
+  // Calculate stats
+  const verifiedCount = users.filter(u => u.is_active === true).length;
+  const pendingCount = users.filter(u => !u.is_active).length;
 
   if (loading) {
     return (
@@ -267,6 +263,14 @@ const UserManagement: React.FC = () => {
                 <p className="text-sm text-gray-500">Total Users</p>
                 <p className="text-2xl font-bold text-green-600">{users.length}</p>
               </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Verified</p>
+                <p className="text-2xl font-bold text-blue-600">{verifiedCount}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -309,6 +313,7 @@ const UserManagement: React.FC = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+                <th className="p-4 text-left font-semibold">Status</th>
                 <th className="p-4 text-left font-semibold">Name</th>
                 <th className="p-4 text-left font-semibold">Phone</th>
                 <th className="p-4 text-left font-semibold">Category</th>
@@ -327,6 +332,19 @@ const UserManagement: React.FC = () => {
                       idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                     } hover:bg-green-50 transition-colors border-b border-gray-200`}
                   >
+                    <td className="p-4">
+                      {user.is_active ? (
+                        <span className="flex items-center gap-2 text-green-600 font-semibold text-sm">
+                          <CheckCircle className="w-4 h-4" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
+                          <XCircle className="w-4 h-4" />
+                          Pending
+                        </span>
+                      )}
+                    </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -391,7 +409,7 @@ const UserManagement: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center p-8">
+                  <td colSpan={8} className="text-center p-8">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <User className="w-16 h-16 mb-4" />
                       <p className="text-lg font-medium">No users found</p>

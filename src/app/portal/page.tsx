@@ -2,8 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
-import { CheckCircle, XCircle, User, Phone, Home, Calendar } from "lucide-react";
+import { CheckCircle, XCircle, User, Phone, Home, Calendar, AlertCircle } from "lucide-react";
 
 interface UserData {
   id: number;
@@ -28,11 +27,18 @@ const Portal: React.FC = () => {
   const [statusLoading, setStatusLoading] = useState(false);
   const [activating, setActivating] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const router = useRouter();
   const BASE_URL =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     "https://gcft-camp.onrender.com/api/v1";
+
+  // Toast notification
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const isValidPhoneNumber = (phone: string) => {
     const cleaned = phone.trim().replace(/\s+/g, "");
@@ -44,7 +50,7 @@ const Portal: React.FC = () => {
   const handleCheckStatus = async () => {
     const cleanedPhone = phone.trim().replace(/\s+/g, "");
     if (!isValidPhoneNumber(cleanedPhone)) {
-      toast.error("Please enter a valid phone number");
+      showToast("Please enter a valid phone number", 'error');
       return;
     }
 
@@ -61,17 +67,17 @@ const Portal: React.FC = () => {
         setUserData(data);
 
         if (data?.hall_name) {
-          toast.success("✅ User registration found!");
+          showToast("✅ User registration found!", 'success');
         } else {
-          toast.error("⚠️ Registration incomplete - no bed allocation yet");
+          showToast("⚠️ Registration incomplete - no bed allocation yet", 'error');
         }
       } else {
-        toast.error("❌ No registration found for this number");
+        showToast("❌ No registration found for this number", 'error');
         setUserData(null);
       }
     } catch (error) {
       console.error("Status check error:", error);
-      toast.error("Error checking status. Please try again.");
+      showToast("Error checking status. Please try again.", 'error');
       setUserData(null);
     } finally {
       setStatusLoading(false);
@@ -85,8 +91,9 @@ const Portal: React.FC = () => {
     setActivating(true);
 
     try {
+      console.log("Activating user with phone:", cleanedPhone);
       const res = await fetch(
-        `${BASE_URL}/activate-user/${encodeURIComponent(cleanedPhone)}`,
+        `${BASE_URL}/activate-user?number=${encodeURIComponent(cleanedPhone)}`,
         {
           method: "PUT",
           headers: {
@@ -95,17 +102,37 @@ const Portal: React.FC = () => {
         }
       );
 
+      console.log("Activation response status:", res.status);
+      
       if (res.ok) {
         const activatedUser: UserData = await res.json();
-        setUserData(activatedUser);
-        toast.success("🎉 User activated successfully!");
+        console.log("Activated user data:", activatedUser);
+        
+        // Update the user data with is_active set to true
+        setUserData({
+          ...userData,
+          is_active: true,
+          ...activatedUser
+        });
+        
+        showToast("🎉 User verified successfully!", 'success');
       } else {
-        const errorData = await res.json();
-        toast.error(errorData.detail || "Failed to activate user");
+        const errorText = await res.text();
+        console.error("Activation error response:", errorText);
+        
+        let errorMessage = "Failed to verify user";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        showToast(`❌ ${errorMessage}`, 'error');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Activation error:", error);
-      toast.error("Error activating user. Please try again.");
+      showToast(`❌ ${error.message || "Error verifying user. Please try again."}`, 'error');
     } finally {
       setActivating(false);
     }
@@ -123,6 +150,24 @@ const Portal: React.FC = () => {
       style={{ backgroundImage: `url('/images/campBg.jpg')` }}
     >
       <div className="absolute inset-0 bg-green-800/70"></div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+          <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
+            toast.type === 'success' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-red-500 text-white'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <XCircle className="w-5 h-5" />
+            )}
+            <span className="font-medium">{toast.message}</span>
+          </div>
+        </div>
+      )}
 
       <h1 className="text-[1.4rem] sm:text-3xl relative font-bold text-white mb-6">
         VERIFY REGISTRANT
@@ -167,17 +212,31 @@ const Portal: React.FC = () => {
           <div className="mt-8 bg-white rounded-2xl shadow-xl p-6 text-left space-y-4">
             <div className="flex items-center justify-between border-b pb-4">
               <h2 className="text-xl font-bold text-gray-800">User Details</h2>
-              {userData.hall_name ? (
-                <span className="flex items-center gap-2 text-green-600 font-semibold">
-                  <CheckCircle className="w-5 h-5" />
-                  Registered
-                </span>
-              ) : (
-                <span className="flex items-center gap-2 text-orange-600 font-semibold">
-                  <XCircle className="w-5 h-5" />
-                  Incomplete
-                </span>
-              )}
+              <div className="flex flex-col items-end gap-1">
+                {userData.hall_name ? (
+                  <span className="flex items-center gap-2 text-green-600 font-semibold">
+                    <CheckCircle className="w-5 h-5" />
+                    Registered
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 text-orange-600 font-semibold">
+                    <XCircle className="w-5 h-5" />
+                    Incomplete
+                  </span>
+                )}
+                {/* Verification Status */}
+                {userData.is_active ? (
+                  <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold">
+                    <CheckCircle className="w-4 h-4" />
+                    Verified
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-orange-600 text-sm font-semibold">
+                    <AlertCircle className="w-4 h-4" />
+                    Pending Verification
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -263,23 +322,30 @@ const Portal: React.FC = () => {
             {/* Action Buttons */}
             {userData.hall_name && (
               <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t">
-                <button
-                  onClick={handleActivateUser}
-                  disabled={activating}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 px-6 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {activating ? (
-                    <>
-                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Activating...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-5 h-5" />
-                      Activate User
-                    </>
-                  )}
-                </button>
+                {!userData.is_active ? (
+                  <button
+                    onClick={handleActivateUser}
+                    disabled={activating}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-6 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {activating ? (
+                      <>
+                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        Verify User
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="flex-1 bg-green-50 border-2 border-green-500 rounded-lg p-3 flex items-center justify-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <span className="font-semibold text-green-800">User Already Verified</span>
+                  </div>
+                )}
 
                 <button
                   onClick={handleViewTicket}
@@ -295,6 +361,15 @@ const Portal: React.FC = () => {
               <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded mt-4">
                 <p className="text-sm text-orange-800">
                   <strong>Note:</strong> This user hasn't completed registration yet. No bed has been allocated.
+                </p>
+              </div>
+            )}
+
+            {/* Verification Info */}
+            {userData.hall_name && !userData.is_active && (
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mt-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Action Required:</strong> Click "Verify User" to activate this registration and allow the user to access their ticket.
                 </p>
               </div>
             )}
