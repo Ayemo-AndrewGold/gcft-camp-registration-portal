@@ -4,7 +4,7 @@ import PortalHeader from "@/components/PortalHeader";
 import PortalSidebar from "@/components/PortalSidebar";
 import { ReactNode, useState, useEffect } from "react";
 
-export default function AdminLayout({
+export default function PortalLayout({
   children,
 }: {
   children: ReactNode;
@@ -33,7 +33,7 @@ export default function AdminLayout({
   }, []);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       {/* Header */}
       <PortalHeader />
       
@@ -42,14 +42,18 @@ export default function AdminLayout({
       
       {/* Main Content Area */}
       <main 
-        className={`${
-          sidebarCollapsed ? 'ml-20' : 'ml-65'
-        } pt-16 min-h-screen transition-all duration-300 ease-in-out`}
+        className={`
+          ml-0
+          ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-65'}
+          pt-16
+          min-h-screen 
+          transition-all duration-300 ease-in-out
+        `}
       >
         {/* Content Container with Professional Styling */}
-        <div className="max-w-[1600px] mx-auto">
-          {/* Optional: Add a subtle content wrapper */}
-          <div className="bg-white/50 backdrop-blur-sm p-2 rounded-2xl shadow-sm min-h-[calc(100vh-7rem)]">
+        <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
+          {/* Content wrapper with responsive padding */}
+          <div className="bg-white/50 backdrop-blur-sm p-2 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm min-h-[calc(100vh-5rem)] sm:min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-7rem)]">
             {children}
           </div>
         </div>

@@ -87,13 +87,15 @@ const Portal: React.FC = () => {
   const handleActivateUser = async () => {
     if (!userData) return;
 
-    const cleanedPhone = phone.trim().replace(/\s+/g, "");
+    const cleanedPhone = userData.phone_number.trim().replace(/\s+/g, "");
     setActivating(true);
 
     try {
       console.log("Activating user with phone:", cleanedPhone);
+      console.log("Full URL:", `${BASE_URL}/activate-user/${encodeURIComponent(cleanedPhone)}?number=${encodeURIComponent(cleanedPhone)}`);
+      
       const res = await fetch(
-        `${BASE_URL}/activate-user?number=${encodeURIComponent(cleanedPhone)}`,
+        `${BASE_URL}/activate-user/${encodeURIComponent(cleanedPhone)}?number=${encodeURIComponent(cleanedPhone)}`,
         {
           method: "PUT",
           headers: {

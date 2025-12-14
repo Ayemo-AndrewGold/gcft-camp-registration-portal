@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, CheckCircle, User, Phone, Home, Layers, Download } from "lucide-react";
+import { Search, CheckCircle, User, Phone, Home, Layers, RefreshCw } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -28,6 +28,7 @@ const VerifiedCampers: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const getValue = (u: UserData, ...keys: string[]): string => {
     for (let k of keys) {
@@ -38,32 +39,74 @@ const VerifiedCampers: React.FC = () => {
   };
 
   // Fetch only activated/verified users
-  useEffect(() => {
-    const fetchVerifiedUsers = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/users`);
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        
-        const data = await res.json();
-        
-        if (!Array.isArray(data)) {
-          throw new Error("Unexpected response format");
-        }
+  const fetchVerifiedUsers = async (showRefreshing = false) => {
+    if (showRefreshing) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
-        // Filter for only activated users (those with is_active: true)
-        const verifiedUsers = data.filter((user: UserData) => user.is_active === true);
-        
-        setUsers(verifiedUsers);
-        setFilteredUsers(verifiedUsers);
-      } catch (err: any) {
-        console.error("Error fetching verified users:", err.message);
-      } finally {
-        setLoading(false);
+    try {
+      // First, get all users
+      const res = await fetch(`${API_BASE}/users`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-    };
+      
+      const data = await res.json();
+      
+      if (!Array.isArray(data)) {
+        throw new Error("Unexpected response format");
+      }
+
+      console.log("=== VERIFIED CAMPERS DEBUG ===");
+      console.log("Total users fetched:", data.length);
+      
+      // Fetch detailed info for each user to get is_active status
+      const usersWithStatus = await Promise.all(
+        data.map(async (user: any) => {
+          try {
+            const detailRes = await fetch(`${API_BASE}/user/${encodeURIComponent(user.phone_number)}`);
+            if (detailRes.ok) {
+              const detailData = await detailRes.json();
+              console.log(`User ${user.first_name} (${user.phone_number}):`, {
+                is_active: detailData.is_active,
+                has_is_active: 'is_active' in detailData
+              });
+              return { ...user, is_active: detailData.is_active };
+            }
+            return user;
+          } catch (err) {
+            console.error(`Error fetching details for ${user.phone_number}:`, err);
+            return user;
+          }
+        })
+      );
+      
+      // Filter for only activated users
+      const verifiedUsers = usersWithStatus.filter((user: any) => user.is_active === true);
+      
+      console.log("Total verified users found:", verifiedUsers.length);
+      console.log("Verified users:", verifiedUsers.map(u => `${u.first_name} (${u.phone_number})`));
+      console.log("=== END DEBUG ===");
+      
+      setUsers(verifiedUsers);
+      setFilteredUsers(verifiedUsers);
+    } catch (err: any) {
+      console.error("Error fetching verified users:", err.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchVerifiedUsers();
   }, []);
 
@@ -84,6 +127,10 @@ const VerifiedCampers: React.FC = () => {
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
 
+  const handleRefresh = () => {
+    fetchVerifiedUsers(true);
+  };
+
   if (loading) {
     return (
       <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
@@ -98,8 +145,8 @@ const VerifiedCampers: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
+    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-1 p-1 rounded-lg shadow-md">
+      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -113,6 +160,15 @@ const VerifiedCampers: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh verified users list"
+              >
+                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Verified Users</p>
                 <p className="text-2xl font-bold text-green-600">{users.length}</p>
@@ -233,6 +289,13 @@ const VerifiedCampers: React.FC = () => {
                       <CheckCircle className="w-16 h-16 mb-4" />
                       <p className="text-lg font-medium">No verified campers found</p>
                       <p className="text-sm">Users need to be activated first</p>
+                      <button
+                        onClick={handleRefresh}
+                        className="mt-4 flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh List
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -244,7 +307,7 @@ const VerifiedCampers: React.FC = () => {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
           <p className="text-gray-600">
-            Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+            Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages || 1}</span>
           </p>
           <div className="flex gap-2">
             <button
@@ -256,7 +319,7 @@ const VerifiedCampers: React.FC = () => {
             </button>
             <button
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || totalPages === 0}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
               Next

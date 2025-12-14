@@ -125,14 +125,14 @@ const Header = () => {
           ))}
           <hr className="border-gray-300" />
           <Link
-            href="/register2"
+            href="/register"
             onClick={closeMenu}
             className="text-base font-medium text-[#0E0E1D] hover:text-[#85C061]"
           >
             Check Status
           </Link>
           <Link
-            href="/register1"
+            href="/register"
             onClick={closeMenu}
             className="text-base font-medium text-[#0E0E1D] hover:text-[#85C061]"
           >
