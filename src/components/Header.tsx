@@ -4,7 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-// import gcftLogo from '@/public/images/gcftLogo.png'; // Optionally import logo
 
 const Header = () => {
   const navLinks = [
