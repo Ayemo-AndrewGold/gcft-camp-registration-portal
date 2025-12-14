@@ -33,7 +33,16 @@ const VerifiedCampers: React.FC = () => {
   const getValue = (u: UserData, ...keys: string[]): string => {
     for (let k of keys) {
       const value = u[k as keyof UserData];
-      if (value !== undefined && value !== null && value !== "") return String(value);
+      if (value !== undefined && value !== null && value !== "") {
+        let stringValue = String(value);
+        
+        // Special handling for floor field - remove "Floor " prefix if present
+        if (k === 'floor' && stringValue.startsWith('Floor ')) {
+          stringValue = stringValue.replace('Floor ', '');
+        }
+        
+        return stringValue;
+      }
     }
     return "—";
   };
@@ -47,8 +56,8 @@ const VerifiedCampers: React.FC = () => {
     }
 
     try {
-      // First, get all users
-      const res = await fetch(`${API_BASE}/users`, {
+      // Use the dedicated active-users endpoint
+      const res = await fetch(`${API_BASE}/active-users`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
@@ -66,38 +75,12 @@ const VerifiedCampers: React.FC = () => {
       }
 
       console.log("=== VERIFIED CAMPERS DEBUG ===");
-      console.log("Total users fetched:", data.length);
-      
-      // Fetch detailed info for each user to get is_active status
-      const usersWithStatus = await Promise.all(
-        data.map(async (user: any) => {
-          try {
-            const detailRes = await fetch(`${API_BASE}/user/${encodeURIComponent(user.phone_number)}`);
-            if (detailRes.ok) {
-              const detailData = await detailRes.json();
-              console.log(`User ${user.first_name} (${user.phone_number}):`, {
-                is_active: detailData.is_active,
-                has_is_active: 'is_active' in detailData
-              });
-              return { ...user, is_active: detailData.is_active };
-            }
-            return user;
-          } catch (err) {
-            console.error(`Error fetching details for ${user.phone_number}:`, err);
-            return user;
-          }
-        })
-      );
-      
-      // Filter for only activated users
-      const verifiedUsers = usersWithStatus.filter((user: any) => user.is_active === true);
-      
-      console.log("Total verified users found:", verifiedUsers.length);
-      console.log("Verified users:", verifiedUsers.map(u => `${u.first_name} (${u.phone_number})`));
+      console.log("Total verified users fetched:", data.length);
+      console.log("Verified users:", data.map((u: any) => `${u.first_name} (${u.phone_number})`));
       console.log("=== END DEBUG ===");
       
-      setUsers(verifiedUsers);
-      setFilteredUsers(verifiedUsers);
+      setUsers(data);
+      setFilteredUsers(data);
     } catch (err: any) {
       console.error("Error fetching verified users:", err.message);
     } finally {
@@ -145,8 +128,8 @@ const VerifiedCampers: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-1 p-1 rounded-lg shadow-md">
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-6 lg:p-8">
+    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+      <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <div className="flex items-center justify-between flex-wrap gap-4">
