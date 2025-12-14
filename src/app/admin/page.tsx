@@ -14,6 +14,7 @@ interface HallData {
   total: number;
   percentage: string;
   color: string;
+  [key: string]: string | number;
 }
 
 interface Category {
