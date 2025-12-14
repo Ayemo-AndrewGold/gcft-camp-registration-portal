@@ -290,7 +290,7 @@ export default function PortalHeader() {
                 : 'hover:bg-white/50'
             }`}>
               <Image
-                src='/avatar.webp'
+                src='/images/gcftLogo.png'
                 alt='Portal Profile'
                 width={40}
                 height={40}
