@@ -229,17 +229,8 @@ function Register2Content() {
     { id: "category", label: "Category", required: true, options: categories },
     { id: "first_name", label: "Full Name", required: true },
     { 
-      id: "gender", 
-      label: "Gender", 
-      required: true,
-      options: [
-        { value: "Male", label: "Male" },
-        { value: "Female", label: "Female" }
-      ]
-    },
-    { 
       id: "age_range", 
-      label: "Age Range", 
+      label: "Age", 
       required: true,
       options: [
         { value: "10-17", label: "10-17" },
@@ -290,8 +281,8 @@ function Register2Content() {
     formData.state && 
     !dateError;
 
-    // Submit handler
-    const handleSubmit = async (e: FormEvent) => {
+  // Submit handler with debug logging
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isFormValid) {
       toast.error("Please fill all required fields");
@@ -305,7 +296,6 @@ function Register2Content() {
       const submitData = {
         category: formData.category,
         first_name: formData.first_name,
-        gender: formData.gender,
         age_range: formData.age_range,
         marital_status: formData.marital_status,
         no_children: formData.no_children ? parseInt(formData.no_children) : null,
@@ -321,7 +311,6 @@ function Register2Content() {
       console.log("Submitting data:", submitData);
 
       // Register the full user details directly
-      // Phone number should already be registered from register page
       const res = await fetch(`${BASE_URL}/register-user/${encodeURIComponent(phone)}`, {
         method: "POST",
         body: JSON.stringify(submitData),
@@ -329,8 +318,14 @@ function Register2Content() {
       });
 
       const responseText = await res.text();
+      
+      // DEBUG LOGGING
+      console.log("=== DEBUG INFO ===");
       console.log("Response status:", res.status);
+      console.log("Response OK?:", res.ok);
       console.log("Response text:", responseText);
+      console.log("Response text length:", responseText.length);
+      console.log("==================");
 
       if (!res.ok) {
         let errorMessage = "Failed to register";
@@ -345,20 +340,38 @@ function Register2Content() {
         throw new Error(errorMessage);
       }
 
-      const userData = JSON.parse(responseText);
-      toast.success("🎉 Attendance booked successfully!");
+      // Check if response is empty
+      if (!responseText || responseText.trim() === '') {
+        console.warn("Empty response received but status was OK");
+        toast.success("🎉 Registration successful!");
+        router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
+        return;
+      }
 
-      router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
+      // Try to parse response
+      try {
+        const userData = JSON.parse(responseText);
+        console.log("Parsed user data:", userData);
+        toast.success("🎉 Attendance booked successfully!");
+        router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
+      } catch (parseError) {
+        console.error("Failed to parse response:", parseError);
+        console.error("Response that failed to parse:", responseText);
+        // Still redirect even if parse fails, since registration was successful
+        toast.success("🎉 Registration completed!");
+        router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
+      }
+
     } catch (error: any) {
       console.error("Registration error:", error);
       toast.error(error.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
-    };
+  };
 
   // --------------------------------------------
-  // UI
+  // UI (Using div instead of form)
   // --------------------------------------------
   return (
     <section
@@ -378,10 +391,7 @@ function Register2Content() {
         </div>
 
         <div className="p-8 sm:p-12 bg-white/30 backdrop-blur-md rounded-3xl shadow-2xl">
-          <form
-            onSubmit={handleSubmit}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {fields.map((f) => (
               <FormField
                 key={f.id}
@@ -436,7 +446,7 @@ function Register2Content() {
             {/* Submit */}
             <div className="col-span-full flex justify-center mt-10">
               <button
-                type="submit"
+                onClick={handleSubmit}
                 disabled={!isFormValid || loading}
                 className={`${isFormValid ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 cursor-not-allowed"} text-white py-3 px-6 rounded-lg shadow-md transition`}
               >
@@ -450,7 +460,7 @@ function Register2Content() {
                 )}
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </section>

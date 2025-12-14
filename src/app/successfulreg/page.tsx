@@ -11,11 +11,10 @@ interface TicketData {
   id: number;
   first_name?: string;
   hall_name?: string;
-  floor?: number;
-  display_floor?: string;
+  floor?: string;
   extra_beds?: number[];
   phone_number?: string;
-  bed_number?: number;
+  bed_number?: string;
 }
 
 const BASE_URL =
@@ -41,22 +40,40 @@ const SuccessfulRegContent: React.FC = () => {
     }
 
     const fetchUser = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/user/${encodeURIComponent(phone)}`);
-        if (!res.ok) throw new Error("Failed to fetch user data");
+      const maxRetries = 3;
+      let attempt = 0;
+      
+      while (attempt < maxRetries) {
+        try {
+          // Small delay between attempts (except first one)
+          if (attempt > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1500 * attempt));
+            toast.loading(`Retrieving your ticket... (Attempt ${attempt + 1})`, { id: 'fetch' });
+          }
+          
+          const res = await fetch(`${BASE_URL}/user/${encodeURIComponent(phone)}`);
+          if (!res.ok) throw new Error("Failed to fetch user data");
 
-        const user: TicketData = await res.json();
-        if (!user?.id) throw new Error("User not found");
+          const user: TicketData = await res.json();
+          if (!user?.id) throw new Error("User not found");
 
-        setTicketData(user);
-      } catch (err: unknown) {
-        console.error(err);
-        const msg =
-          err instanceof Error ? err.message : "Error fetching user data";
-        toast.error(msg);
-        router.push("/register");
-      } finally {
-        setLoading(false);
+          setTicketData(user);
+          toast.dismiss('fetch');
+          setLoading(false);
+          return; // Success, exit function
+          
+        } catch (err: unknown) {
+          attempt++;
+          console.error(`Fetch attempt ${attempt} failed:`, err);
+          
+          if (attempt >= maxRetries) {
+            // All retries exhausted
+            const msg = err instanceof Error ? err.message : "Error fetching user data";
+            toast.error(msg, { id: 'fetch' });
+            router.push("/register");
+            setLoading(false);
+          }
+        }
       }
     };
 
@@ -142,7 +159,7 @@ const SuccessfulRegContent: React.FC = () => {
       const details = [
         { label: "Name:", value: ticketData.first_name || "N/A" },
         { label: "Hall:", value: ticketData.hall_name || "N/A" },
-        { label: "Floor:", value: ticketData.display_floor || "N/A" },
+        { label: "Floor:", value: ticketData.floor || "N/A" },
         { label: "Bedspace:", value: ticketData.bed_number?.toString() || "N/A" },
         { label: "Phone:", value: ticketData.phone_number || "N/A" },
         { label: "Extra Beds:", value: ticketData.extra_beds?.join(", ") || "None" },
@@ -252,7 +269,7 @@ const SuccessfulRegContent: React.FC = () => {
             
             <div className="flex justify-between border-b pb-2">
               <span className="text-gray-600 font-medium">Floor:</span>
-              <span className="text-gray-800 font-semibold">{ticketData.display_floor}</span>
+              <span className="text-gray-800 font-semibold">{ticketData.floor}</span>
             </div>
             
             <div className="flex justify-between border-b pb-2">
