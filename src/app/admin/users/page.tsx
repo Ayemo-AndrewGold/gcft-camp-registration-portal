@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw, Calendar } from "lucide-react";
+import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw, Calendar, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -36,8 +36,18 @@ const UserManagement: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  
+  // New state for enhanced features
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending'>('all');
+  const [hallFilter, setHallFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [sortField, setSortField] = useState<keyof UserData | ''>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [googleSheetUrl, setGoogleSheetUrl] = useState<string>("");
+  const [showSheetModal, setShowSheetModal] = useState<boolean>(false);
+  const [syncingToSheet, setSyncingToSheet] = useState<boolean>(false);
 
-  // Toast notification component
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -48,22 +58,17 @@ const UserManagement: React.FC = () => {
       const value = u[k as keyof UserData];
       if (value !== undefined && value !== null && value !== "") {
         let stringValue = String(value);
-        
-        // Special handling for floor field - remove "Floor " prefix if present
         if (k === 'floor' && stringValue.startsWith('Floor ')) {
           stringValue = stringValue.replace('Floor ', '');
         }
-        
         return stringValue;
       }
     }
     return "—";
   };
 
-  // Format date and time
   const formatDateTime = (timestamp?: string): string => {
     if (!timestamp) return "—";
-    
     try {
       const date = new Date(timestamp);
       const dateStr = date.toLocaleDateString('en-US', { 
@@ -81,7 +86,6 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // Fetch users with their active status
   const fetchUsers = async (showRefreshing = false) => {
     if (showRefreshing) {
       setRefreshing(true);
@@ -90,7 +94,6 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      // Fetch ALL users
       const res = await fetch(`${API_BASE}/users`, {
         cache: 'no-store',
         headers: {
@@ -108,7 +111,6 @@ const UserManagement: React.FC = () => {
         throw new Error("Unexpected response format: expected an array");
       }
 
-      // Fetch active/verified users
       const activeUsersRes = await fetch(`${API_BASE}/active-users`, {
         cache: 'no-store',
         headers: {
@@ -118,10 +120,6 @@ const UserManagement: React.FC = () => {
       const activeUsers = activeUsersRes.ok ? await activeUsersRes.json() : [];
       const activePhones = new Set(activeUsers.map((u: any) => u.phone_number));
 
-      console.log("Total registered users:", data.length);
-      console.log("Total verified users:", activeUsers.length);
-
-      // Add is_active field based on whether user is in active users list
       const usersWithStatus = data.map((user: any) => ({
         ...user,
         is_active: activePhones.has(user.phone_number)
@@ -142,22 +140,180 @@ const UserManagement: React.FC = () => {
     fetchUsers();
   }, []);
 
-  // Search filter
+  // Enhanced filtering with status, hall, and category
   useEffect(() => {
-    const results = users.filter((u) =>
-      Object.values(u).some((val) =>
+    let results = users.filter((u) => {
+      const matchesSearch = Object.values(u).some((val) =>
         String(val).toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
+      );
+      
+      const matchesStatus = 
+        statusFilter === 'all' ? true :
+        statusFilter === 'verified' ? u.is_active === true :
+        u.is_active !== true;
+      
+      const matchesHall = hallFilter === 'all' ? true : u.hall_name === hallFilter;
+      const matchesCategory = categoryFilter === 'all' ? true : u.category === categoryFilter;
+      
+      return matchesSearch && matchesStatus && matchesHall && matchesCategory;
+    });
+
+    // Apply sorting
+    if (sortField) {
+      results.sort((a, b) => {
+        const aVal = a[sortField];
+        const bVal = b[sortField];
+        
+        if (aVal === undefined || aVal === null) return 1;
+        if (bVal === undefined || bVal === null) return -1;
+        
+        const comparison = String(aVal).localeCompare(String(bVal));
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
     setFilteredUsers(results);
     setCurrentPage(1);
-  }, [searchTerm, users]);
+  }, [searchTerm, users, statusFilter, hallFilter, categoryFilter, sortField, sortDirection]);
+
+  // Get unique halls and categories for filters
+  const uniqueHalls = Array.from(new Set(users.map(u => u.hall_name).filter(Boolean)));
+  const uniqueCategories = Array.from(new Set(users.map(u => u.category).filter(Boolean)));
 
   // Pagination
   const indexOfLastUser = currentPage * entriesPerPage;
   const indexOfFirstUser = indexOfLastUser - entriesPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
+
+  // Column sorting handler
+  const handleSort = (field: keyof UserData) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: keyof UserData) => {
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 opacity-50" />;
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="w-4 h-4" /> : 
+      <ArrowDown className="w-4 h-4" />;
+  };
+
+  // Bulk selection handlers
+  const toggleSelectAll = () => {
+    if (selectedUsers.size === currentUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(currentUsers.map(u => u.phone_number)));
+    }
+  };
+
+  const toggleSelectUser = (phone: string) => {
+    const newSelected = new Set(selectedUsers);
+    if (newSelected.has(phone)) {
+      newSelected.delete(phone);
+    } else {
+      newSelected.add(phone);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = [
+      'Status', 'Name', 'Phone', 'Gender', 'Age', 'Category', 
+      'Hall', 'Floor', 'Bed', 'Marital Status', 
+      'Country', 'State', 'Local Assembly', 'Registration Date'
+    ];
+    
+    const csvData = filteredUsers.map(user => [
+      user.is_active ? 'Verified' : 'Pending',
+      user.first_name || '',
+      user.phone_number || '',
+      user.gender || '',
+      user.age || '',
+      user.category || '',
+      user.hall_name || '',
+      user.floor || '',
+      user.bed_number || '',
+      user.marital_status || '',
+      user.country || '',
+      user.state || '',
+      user.local_assembly || '',
+      formatDateTime(user.time_registered)
+    ]);
+
+    const csv = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    showToast(`✅ Exported ${filteredUsers.length} users to CSV`, 'success');
+  };
+
+  // Sync to Google Sheets
+  const syncToGoogleSheets = async () => {
+    if (!googleSheetUrl) {
+      showToast("Please enter a Google Sheet URL", 'error');
+      return;
+    }
+
+    setSyncingToSheet(true);
+    
+    try {
+      // Extract sheet ID from URL
+      const sheetIdMatch = googleSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!sheetIdMatch) {
+        throw new Error("Invalid Google Sheets URL");
+      }
+
+      // Prepare data for Google Sheets
+      const sheetData = [
+        ['Status', 'Name', 'Phone', 'Gender', 'Age', 'Category', 'Hall', 'Floor', 'Bed', 'Marital Status', 'Country', 'State', 'Local Assembly', 'Registration Date'],
+        ...filteredUsers.map(user => [
+          user.is_active ? 'Verified' : 'Pending',
+          user.first_name || '',
+          user.phone_number || '',
+          user.gender || '',
+          user.age || '',
+          user.category || '',
+          user.hall_name || '',
+          user.floor || '',
+          user.bed_number || '',
+          user.marital_status || '',
+          user.country || '',
+          user.state || '',
+          user.local_assembly || '',
+          formatDateTime(user.time_registered)
+        ])
+      ];
+
+      // Note: This requires Google Sheets API setup on the backend
+      // For now, we'll download as CSV and show instructions
+      exportToCSV();
+      
+      showToast("📊 CSV downloaded. Import it into your Google Sheet manually", 'success');
+      setShowSheetModal(false);
+      
+    } catch (err: any) {
+      console.error("Sync error:", err);
+      showToast("❌ Failed to sync to Google Sheets", 'error');
+    } finally {
+      setSyncingToSheet(false);
+    }
+  };
 
   const handleUserClick = (user: UserData) => {
     setSelectedUser(user);
@@ -168,7 +324,6 @@ const UserManagement: React.FC = () => {
     setEditData((prev) => (prev ? { ...prev, [field]: value } : null));
   };
 
-  // Handle Save
   const handleSave = async () => {
     if (!selectedUser || !editData) return;
 
@@ -193,11 +348,6 @@ const UserManagement: React.FC = () => {
           u.phone_number === selectedUser.phone_number ? updatedUser : u
         )
       );
-      setFilteredUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === selectedUser.phone_number ? updatedUser : u
-        )
-      );
 
       setSelectedUser(null);
       setEditData(null);
@@ -207,7 +357,6 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // Delete category
   const handleDeleteCategory = async (user: UserData) => {
     if (!user.category_id) {
       showToast("This user has no category to delete.", 'error');
@@ -230,9 +379,6 @@ const UserManagement: React.FC = () => {
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json().catch(() => ({}));
-      console.log("Delete response:", data);
-      
       showToast("✅ Category deleted successfully!", 'success');
 
       const updatedUser = { 
@@ -247,26 +393,9 @@ const UserManagement: React.FC = () => {
         )
       );
 
-      setFilteredUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === user.phone_number ? updatedUser : u
-        )
-      );
-
     } catch (err: any) {
-      console.error("Delete error details:", {
-        message: err.message
-      });
-      
-      if (err.message.includes('404')) {
-        showToast("❌ Category not found. It may have already been deleted.", 'error');
-      } else if (err.message.includes('403')) {
-        showToast("❌ You don't have permission to delete this category.", 'error');
-      } else if (err.message.includes('500')) {
-        showToast("❌ Server error. Please try again later.", 'error');
-      } else {
-        showToast(`❌ Failed to delete category: ${err.message}`, 'error');
-      }
+      console.error("Delete error:", err.message);
+      showToast(`❌ Failed to delete category: ${err.message}`, 'error');
     } finally {
       setDeletingUsers((prev) =>
         prev.filter((id) => id !== user.phone_number)
@@ -274,7 +403,45 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // Calculate stats
+  // Bulk delete categories
+  const handleBulkDeleteCategories = async () => {
+    if (selectedUsers.size === 0) {
+      showToast("Please select users first", 'error');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete categories for ${selectedUsers.size} selected users?`)) {
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const phone of selectedUsers) {
+      const user = users.find(u => u.phone_number === phone);
+      if (user && user.category_id) {
+        try {
+          const response = await fetch(`${API_BASE}/category/${user.category_id}`, {
+            method: 'DELETE',
+          });
+          
+          if (response.ok) {
+            successCount++;
+            const updatedUser = { ...user, category: undefined, category_id: null };
+            setUsers((prev) => prev.map((u) => u.phone_number === phone ? updatedUser : u));
+          } else {
+            failCount++;
+          }
+        } catch {
+          failCount++;
+        }
+      }
+    }
+
+    showToast(`✅ Deleted ${successCount} categories. ${failCount > 0 ? `Failed: ${failCount}` : ''}`, 'success');
+    setSelectedUsers(new Set());
+  };
+
   const verifiedCount = users.filter(u => u.is_active === true).length;
   const pendingCount = users.filter(u => !u.is_active).length;
 
@@ -310,6 +477,88 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Google Sheets Sync Modal */}
+      {showSheetModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-t-2xl">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold">Sync to Google Sheets</h2>
+                  <p className="text-purple-100 text-sm mt-1">Export data to your spreadsheet</p>
+                </div>
+                <button 
+                  onClick={() => setShowSheetModal(false)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Google Sheet URL (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={googleSheetUrl}
+                  onChange={(e) => setGoogleSheetUrl(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  📝 Leave blank to download CSV file for manual import
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 mb-2">📊 How to use:</h3>
+                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                  <li>Click "Sync Now" to download CSV</li>
+                  <li>Open your Google Sheet</li>
+                  <li>Go to File → Import → Upload</li>
+                  <li>Select the downloaded CSV file</li>
+                  <li>Choose "Replace current sheet"</li>
+                </ol>
+              </div>
+
+              <div className="text-sm text-gray-600">
+                <p>✅ Exporting: <span className="font-semibold">{filteredUsers.length} users</span></p>
+                <p>✅ Includes: Status, Name, Phone, Category, Hall, Floor, Bed, and more</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-b-2xl flex justify-end gap-3">
+              <button
+                onClick={() => setShowSheetModal(false)}
+                className="px-6 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-all font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={syncToGoogleSheets}
+                disabled={syncingToSheet}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all font-medium shadow-lg disabled:opacity-50 flex items-center gap-2"
+              >
+                {syncingToSheet ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Sync Now
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
         {/* Header */}
@@ -323,18 +572,31 @@ const UserManagement: React.FC = () => {
                 Manage all registered users for Easter Camp Meeting 2026
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => fetchUsers(true)}
                 disabled={refreshing}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
-                title="Refresh user list and status"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Refreshing...' : 'Refresh'}
               </button>
+              <button
+                onClick={exportToCSV}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+              <button
+                onClick={() => setShowSheetModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Google Sheets
+              </button>
               <div className="text-right">
-                <p className="text-sm text-gray-500">Total Users</p>
+                <p className="text-sm text-gray-500">Total</p>
                 <p className="text-2xl font-bold text-green-600">{users.length}</p>
               </div>
               <div className="text-right">
@@ -349,32 +611,87 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Search & Filter Bar */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, phone, category, hall..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-            />
+        {/* Enhanced Filters */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, phone, category, hall..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter className="w-5 h-5 text-gray-600" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="all">All Status</option>
+                <option value="verified">Verified Only</option>
+                <option value="pending">Pending Only</option>
+              </select>
+
+              <select
+                value={hallFilter}
+                onChange={(e) => setHallFilter(e.target.value)}
+                className="border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="all">All Halls</option>
+                {uniqueHalls.map(hall => (
+                  <option key={hall} value={hall}>{hall}</option>
+                ))}
+              </select>
+
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="all">All Categories</option>
+                {uniqueCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+
+              <select
+                value={entriesPerPage}
+                onChange={(e) => setEntriesPerPage(Number(e.target.value))}
+                className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Show:</label>
-            <select
-              value={entriesPerPage}
-              onChange={(e) => setEntriesPerPage(Number(e.target.value))}
-              className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
+
+          {/* Bulk Actions */}
+          {selectedUsers.size > 0 && (
+            <div className="flex items-center gap-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg flex-wrap">
+              <span className="font-semibold text-blue-800">
+                {selectedUsers.size} user{selectedUsers.size > 1 ? 's' : ''} selected
+              </span>
+              <button
+                onClick={handleBulkDeleteCategories}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+              >
+                Delete Selected Categories
+              </button>
+              <button
+                onClick={() => setSelectedUsers(new Set())}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+              >
+                Clear Selection
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Results Info */}
@@ -387,14 +704,46 @@ const UserManagement: React.FC = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-                <th className="p-4 text-left font-semibold">Status</th>
-                <th className="p-4 text-left font-semibold">Name</th>
-                <th className="p-4 text-left font-semibold">Phone</th>
-                <th className="p-4 text-left font-semibold">Category</th>
-                <th className="p-4 text-left font-semibold">Hall</th>
+                <th className="p-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.size === currentUsers.length && currentUsers.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded cursor-pointer"
+                  />
+                </th>
+                <th className="p-4 text-left">
+                  <button onClick={() => handleSort('is_active')} className="flex items-center gap-2 font-semibold hover:text-green-100">
+                    Status {getSortIcon('is_active')}
+                  </button>
+                </th>
+                <th className="p-4 text-left">
+                  <button onClick={() => handleSort('first_name')} className="flex items-center gap-2 font-semibold hover:text-green-100">
+                    Name {getSortIcon('first_name')}
+                  </button>
+                </th>
+                <th className="p-4 text-left">
+                  <button onClick={() => handleSort('phone_number')} className="flex items-center gap-2 font-semibold hover:text-green-100">
+                    Phone {getSortIcon('phone_number')}
+                  </button>
+                </th>
+                <th className="p-4 text-left">
+                  <button onClick={() => handleSort('category')} className="flex items-center gap-2 font-semibold hover:text-green-100">
+                    Category {getSortIcon('category')}
+                  </button>
+                </th>
+                <th className="p-4 text-left">
+                  <button onClick={() => handleSort('hall_name')} className="flex items-center gap-2 font-semibold hover:text-green-100">
+                    Hall {getSortIcon('hall_name')}
+                  </button>
+                </th>
                 <th className="p-4 text-left font-semibold">Floor</th>
                 <th className="p-4 text-left font-semibold">Bed</th>
-                <th className="p-4 text-left font-semibold">Registered</th>
+                <th className="p-4 text-left">
+                  <button onClick={() => handleSort('time_registered')} className="flex items-center gap-2 font-semibold hover:text-green-100">
+                    RegDate {getSortIcon('time_registered')}
+                  </button>
+                </th>
                 <th className="p-4 text-center font-semibold">Actions</th>
               </tr>
             </thead>
@@ -407,6 +756,14 @@ const UserManagement: React.FC = () => {
                       idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                     } hover:bg-green-50 transition-colors border-b border-gray-200`}
                   >
+                    <td className="p-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.has(user.phone_number)}
+                        onChange={() => toggleSelectUser(user.phone_number)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                      />
+                    </td>
                     <td className="p-4">
                       {user.is_active ? (
                         <span className="flex items-center gap-2 text-green-600 font-semibold text-sm">
@@ -490,7 +847,7 @@ const UserManagement: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="text-center p-8">
+                  <td colSpan={10} className="text-center p-8">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <User className="w-16 h-16 mb-4" />
                       <p className="text-lg font-medium">No users found</p>
