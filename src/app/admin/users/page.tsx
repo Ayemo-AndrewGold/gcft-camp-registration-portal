@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle } from "lucide-react";
+import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw, Calendar } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -21,6 +21,7 @@ interface UserData {
   state?: string;
   local_assembly?: string;
   is_active?: boolean;
+  time_registered?: string;
 }
 
 const UserManagement: React.FC = () => {
@@ -33,6 +34,7 @@ const UserManagement: React.FC = () => {
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
   const [deletingUsers, setDeletingUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Toast notification component
@@ -44,36 +46,99 @@ const UserManagement: React.FC = () => {
   const getValue = (u: UserData, ...keys: string[]): string => {
     for (let k of keys) {
       const value = u[k as keyof UserData];
-      if (value !== undefined && value !== null && value !== "") return String(value);
+      if (value !== undefined && value !== null && value !== "") {
+        let stringValue = String(value);
+        
+        // Special handling for floor field - remove "Floor " prefix if present
+        if (k === 'floor' && stringValue.startsWith('Floor ')) {
+          stringValue = stringValue.replace('Floor ', '');
+        }
+        
+        return stringValue;
+      }
     }
     return "—";
   };
 
-  // Fetch users
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/users`);
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        
-        const data = await res.json();
-        
-        if (!Array.isArray(data)) {
-          throw new Error("Unexpected response format: expected an array");
-        }
+  // Format date and time
+  const formatDateTime = (timestamp?: string): string => {
+    if (!timestamp) return "—";
+    
+    try {
+      const date = new Date(timestamp);
+      const dateStr = date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      const timeStr = date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      return `${dateStr} ${timeStr}`;
+    } catch {
+      return "—";
+    }
+  };
 
-        setUsers(data);
-        setFilteredUsers(data);
-      } catch (err: any) {
-        console.error("Error fetching users:", err.message);
-        showToast("Failed to fetch users.", 'error');
-      } finally {
-        setLoading(false);
+  // Fetch users with their active status
+  const fetchUsers = async (showRefreshing = false) => {
+    if (showRefreshing) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      // Fetch ALL users
+      const res = await fetch(`${API_BASE}/users`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-    };
+      
+      const data = await res.json();
+      
+      if (!Array.isArray(data)) {
+        throw new Error("Unexpected response format: expected an array");
+      }
+
+      // Fetch active/verified users
+      const activeUsersRes = await fetch(`${API_BASE}/active-users`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const activeUsers = activeUsersRes.ok ? await activeUsersRes.json() : [];
+      const activePhones = new Set(activeUsers.map((u: any) => u.phone_number));
+
+      console.log("Total registered users:", data.length);
+      console.log("Total verified users:", activeUsers.length);
+
+      // Add is_active field based on whether user is in active users list
+      const usersWithStatus = data.map((user: any) => ({
+        ...user,
+        is_active: activePhones.has(user.phone_number)
+      }));
+
+      setUsers(usersWithStatus);
+      setFilteredUsers(usersWithStatus);
+    } catch (err: any) {
+      console.error("Error fetching users:", err.message);
+      showToast("Failed to fetch users.", 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUsers();
   }, []);
 
@@ -259,6 +324,15 @@ const UserManagement: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => fetchUsers(true)}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
+                title="Refresh user list and status"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Total Users</p>
                 <p className="text-2xl font-bold text-green-600">{users.length}</p>
@@ -320,6 +394,7 @@ const UserManagement: React.FC = () => {
                 <th className="p-4 text-left font-semibold">Hall</th>
                 <th className="p-4 text-left font-semibold">Floor</th>
                 <th className="p-4 text-left font-semibold">Bed</th>
+                <th className="p-4 text-left font-semibold">Registered</th>
                 <th className="p-4 text-center font-semibold">Actions</th>
               </tr>
             </thead>
@@ -383,6 +458,12 @@ const UserManagement: React.FC = () => {
                       {getValue(user, "bed_number")}
                     </td>
                     <td className="p-4">
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span>{formatDateTime(user.time_registered)}</span>
+                      </div>
+                    </td>
+                    <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleUserClick(user)}
@@ -409,7 +490,7 @@ const UserManagement: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="text-center p-8">
+                  <td colSpan={9} className="text-center p-8">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <User className="w-16 h-16 mb-4" />
                       <p className="text-lg font-medium">No users found</p>
@@ -525,7 +606,7 @@ const UserManagement: React.FC = () => {
                       Floor
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={editData.floor || ""}
                       onChange={(e) => handleChange("floor", e.target.value)}
                       className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -538,9 +619,9 @@ const UserManagement: React.FC = () => {
                       Bed Number
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={editData.bed_number || ""}
-                      onChange={(e) => handleChange("bed_number", Number(e.target.value))}
+                      onChange={(e) => handleChange("bed_number", e.target.value)}
                       className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Enter bed number"
                     />
