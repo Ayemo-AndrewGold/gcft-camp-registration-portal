@@ -206,7 +206,7 @@ const VerifiedCampers: React.FC = () => {
                 <th className="p-4 text-left font-semibold">Hall</th>
                 <th className="p-4 text-left font-semibold">Floor</th>
                 <th className="p-4 text-left font-semibold">Bed</th>
-                <th className="p-4 text-left font-semibold">Assembly</th>
+                {/* <th className="p-4 text-left font-semibold">Assembly</th> */}
               </tr>
             </thead>
             <tbody>
@@ -260,9 +260,9 @@ const VerifiedCampers: React.FC = () => {
                     <td className="p-4 text-gray-700 font-semibold">
                       {getValue(user, "bed_number")}
                     </td>
-                    <td className="p-4 text-gray-700 text-sm">
+                    {/* <td className="p-4 text-gray-700 text-sm">
                       {getValue(user, "local_assembly")}
-                    </td>
+                    </td> */}
                   </tr>
                 ))
               ) : (

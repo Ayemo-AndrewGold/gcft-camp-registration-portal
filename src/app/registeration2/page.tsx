@@ -200,27 +200,58 @@ function Register2Content() {
     fetchCategories();
   }, []);
 
-  // Form change handler
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { id, value } = e.target;
+// Form change handler
+const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const { id, value } = e.target;
 
-    if (id === "arrival_date") {
-      const selectedDate = new Date(value);
-      const min = new Date("2026-03-01");
-      const max = new Date("2026-04-30");
-
-      if (selectedDate < min || selectedDate > max) {
-        setDateError("❌ Please select a date between March and April 2026.");
-        setFormData({ ...formData, arrival_date: "" });
-        return;
-      } else {
-        setDateError("");
-      }
+  // Auto-fill gender and marital status based on category selection
+  if (id === "category") {
+    let autoGender = "";
+    let autoMaritalStatus = "";
+    
+    // Define category mappings
+    const categoryMap: Record<string, { gender: string; marital: string }> = {
+      "Young Brothers": { gender: "Male", marital: "Single" },
+      "Married Brothers": { gender: "Male", marital: "Married" },
+      "Teens below 18 (male)": { gender: "Male", marital: "Single" },
+      "Young Sisters": { gender: "Female", marital: "Single" },
+      "Married Sisters": { gender: "Female", marital: "Married" },
+      "Teens below 18 (female)": { gender: "Female", marital: "Single" },
+      "Nursing Mothers": { gender: "Female", marital: "Married" },
+    };
+    
+    // Get auto-filled values based on category
+    if (categoryMap[value]) {
+      autoGender = categoryMap[value].gender;
+      autoMaritalStatus = categoryMap[value].marital;
     }
+    
+    // Update category, gender, and marital_status
+    setFormData({ 
+      ...formData, 
+      [id]: value, 
+      gender: autoGender,
+      marital_status: autoMaritalStatus 
+    });
+    return;
+  }
 
-    setFormData({ ...formData, [id]: value });
-  };
+  if (id === "arrival_date") {
+    const selectedDate = new Date(value);
+    const min = new Date("2026-03-01");
+    const max = new Date("2026-04-30");
 
+    if (selectedDate < min || selectedDate > max) {
+      setDateError("❌ Please select a date between March and April 2026.");
+      setFormData({ ...formData, arrival_date: "" });
+      return;
+    } else {
+      setDateError("");
+    }
+  }
+
+  setFormData({ ...formData, [id]: value });
+};
   // Show/hide children fields based on marital status
   const showChildrenFields = formData.marital_status === "Married";
 
@@ -230,7 +261,7 @@ function Register2Content() {
     { id: "first_name", label: "Full Name", required: true },
     { 
       id: "age_range", 
-      label: "Age", 
+      label: "Age Range", 
       required: true,
       options: [
         { value: "10-17", label: "10-17" },

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle } from "lucide-react";
+import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -33,6 +33,7 @@ const AllCampers: React.FC = () => {
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
   const [deletingUsers, setDeletingUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Toast notification component
@@ -44,36 +45,78 @@ const AllCampers: React.FC = () => {
   const getValue = (u: UserData, ...keys: string[]): string => {
     for (let k of keys) {
       const value = u[k as keyof UserData];
-      if (value !== undefined && value !== null && value !== "") return String(value);
+      if (value !== undefined && value !== null && value !== "") {
+        let stringValue = String(value);
+        
+        // Special handling for floor field - remove "Floor " prefix if present
+        if (k === 'floor' && stringValue.startsWith('Floor ')) {
+          stringValue = stringValue.replace('Floor ', '');
+        }
+        
+        return stringValue;
+      }
     }
     return "—";
   };
 
-  // Fetch users
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/users`);
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        
-        const data = await res.json();
-        
-        if (!Array.isArray(data)) {
-          throw new Error("Unexpected response format: expected an array");
-        }
+  // Fetch users with their active status
+  const fetchUsers = async (showRefreshing = false) => {
+    if (showRefreshing) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
-        setUsers(data);
-        setFilteredUsers(data);
-      } catch (err: any) {
-        console.error("Error fetching users:", err.message);
-        showToast("Failed to fetch users.", 'error');
-      } finally {
-        setLoading(false);
+    try {
+      // Fetch ALL users
+      const res = await fetch(`${API_BASE}/users`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-    };
+      
+      const data = await res.json();
+      
+      if (!Array.isArray(data)) {
+        throw new Error("Unexpected response format: expected an array");
+      }
+
+      // Fetch active/verified users
+      const activeUsersRes = await fetch(`${API_BASE}/active-users`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const activeUsers = activeUsersRes.ok ? await activeUsersRes.json() : [];
+      const activePhones = new Set(activeUsers.map((u: any) => u.phone_number));
+
+      console.log("Total registered users:", data.length);
+      console.log("Total verified users:", activeUsers.length);
+
+      // Add is_active field based on whether user is in active users list
+      const usersWithStatus = data.map((user: any) => ({
+        ...user,
+        is_active: activePhones.has(user.phone_number)
+      }));
+
+      setUsers(usersWithStatus);
+      setFilteredUsers(usersWithStatus);
+    } catch (err: any) {
+      console.error("Error fetching users:", err.message);
+      showToast("Failed to fetch users.", 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUsers();
   }, []);
 
@@ -93,6 +136,10 @@ const AllCampers: React.FC = () => {
   const indexOfFirstUser = indexOfLastUser - entriesPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
+
+  // Calculate stats
+  const verifiedCount = users.filter(u => u.is_active === true).length;
+  const pendingCount = users.filter(u => !u.is_active).length;
 
   const handleUserClick = (user: UserData) => {
     setSelectedUser(user);
@@ -142,24 +189,20 @@ const AllCampers: React.FC = () => {
     }
   };
 
-  // Delete category - FIXED VERSION
+  // Delete category
   const handleDeleteCategory = async (user: UserData) => {
-    // Validate category_id exists
     if (!user.category_id) {
       showToast("This user has no category to delete.", 'error');
       return;
     }
 
-    // Confirm deletion
     if (!window.confirm(`Are you sure you want to delete the category "${user.category}" for ${user.first_name || user.phone_number}?`)) {
       return;
     }
 
-    // Add to deleting state
     setDeletingUsers((prev) => [...prev, user.phone_number]);
 
     try {
-      // Make DELETE request
       const response = await fetch(`${API_BASE}/category/${user.category_id}`, {
         method: 'DELETE',
       });
@@ -174,21 +217,18 @@ const AllCampers: React.FC = () => {
       
       showToast("✅ Category deleted successfully!", 'success');
 
-      // Update local state - clear category fields
       const updatedUser = { 
         ...user, 
         category: undefined, 
         category_id: null 
       };
 
-      // Update users array
       setUsers((prev) =>
         prev.map((u) =>
           u.phone_number === user.phone_number ? updatedUser : u
         )
       );
 
-      // Update filtered users array
       setFilteredUsers((prev) =>
         prev.map((u) =>
           u.phone_number === user.phone_number ? updatedUser : u
@@ -200,7 +240,6 @@ const AllCampers: React.FC = () => {
         message: err.message
       });
       
-      // Show more specific error messages
       if (err.message.includes('404')) {
         showToast("❌ Category not found. It may have already been deleted.", 'error');
       } else if (err.message.includes('403')) {
@@ -211,7 +250,6 @@ const AllCampers: React.FC = () => {
         showToast(`❌ Failed to delete category: ${err.message}`, 'error');
       }
     } finally {
-      // Remove from deleting state
       setDeletingUsers((prev) =>
         prev.filter((id) => id !== user.phone_number)
       );
@@ -264,9 +302,26 @@ const AllCampers: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => fetchUsers(true)}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
+                title="Refresh user list and status"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Total Users</p>
                 <p className="text-2xl font-bold text-green-600">{users.length}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Verified</p>
+                <p className="text-2xl font-bold text-blue-600">{verifiedCount}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
               </div>
             </div>
           </div>
@@ -522,7 +577,7 @@ const AllCampers: React.FC = () => {
                       Floor
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={editData.floor || ""}
                       onChange={(e) => handleChange("floor", e.target.value)}
                       className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -535,9 +590,9 @@ const AllCampers: React.FC = () => {
                       Bed Number
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={editData.bed_number || ""}
-                      onChange={(e) => handleChange("bed_number", Number(e.target.value))}
+                      onChange={(e) => handleChange("bed_number", e.target.value)}
                       className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Enter bed number"
                     />
