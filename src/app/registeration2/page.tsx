@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, ChangeEvent, FormEvent, Suspense } from "react";
+import React, { useState, useEffect, ChangeEvent, FormEvent, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
@@ -165,6 +165,13 @@ function Register2Content() {
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [dateError, setDateError] = useState("");
 
+  // Camera states
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   const BASE_URL =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     "https://gcft-camp.onrender.com/api/v1";
@@ -199,6 +206,64 @@ function Register2Content() {
     };
     fetchCategories();
   }, []);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // Camera functions
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user' } 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setIsCameraOpen(true);
+      }
+    } catch (err) {
+      toast.error('Camera access denied or not available');
+      console.error('Error accessing camera:', err);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const imageData = canvas.toDataURL('image/png');
+        setCapturedImage(imageData);
+        closeCamera();
+        toast.success('Photo captured successfully!');
+      }
+    }
+  };
+
+  const closeCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+  };
 
 // Form change handler
 const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -307,6 +372,14 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     },
   ];
 
+  // UNCOMMENT THIS LINE TO MAKE PHOTO REQUIRED
+  // const isFormValid =
+  //   fields.filter((f) => f.required).every((f) => formData[f.id]) && 
+  //   formData.state && 
+  //   capturedImage && // Photo is required
+  //   !dateError;
+
+  // COMMENT THIS LINE WHEN PHOTO IS REQUIRED
   const isFormValid =
     fields.filter((f) => f.required).every((f) => formData[f.id]) && 
     formData.state && 
@@ -319,6 +392,12 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       toast.error("Please fill all required fields");
       return;
     }
+
+    // UNCOMMENT THIS BLOCK WHEN PHOTO IS REQUIRED
+    // if (!capturedImage) {
+    //   toast.error("Please take your profile photo before submitting");
+    //   return;
+    // }
 
     setLoading(true);
 
@@ -337,9 +416,36 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         medical_issues: formData.medical_issues || null,
         local_assembly: formData.local_assembly,
         local_assembly_address: formData.local_assembly_address,
+        photo: capturedImage || null, // Include the captured photo
       };
 
       console.log("Submitting data:", submitData);
+
+      // =================================================================
+      // TODO: REPLACE THIS WITH YOUR PHOTO UPLOAD API ENDPOINT
+      // =================================================================
+      // If your backend needs the photo uploaded separately:
+      // 
+      // let photoUrl = null;
+      // if (capturedImage) {
+      //   const photoFormData = new FormData();
+      //   const blob = await fetch(capturedImage).then(r => r.blob());
+      //   photoFormData.append('photo', blob, 'profile.png');
+      //   
+      //   const photoResponse = await fetch(`${BASE_URL}/upload-photo`, {
+      //     method: 'POST',
+      //     body: photoFormData,
+      //   });
+      //   
+      //   if (photoResponse.ok) {
+      //     const photoData = await photoResponse.json();
+      //     photoUrl = photoData.url; // Get the uploaded photo URL
+      //   }
+      // }
+      // 
+      // Then include photoUrl in submitData instead of base64:
+      // photo: photoUrl || null,
+      // =================================================================
 
       // Register the full user details directly
       const res = await fetch(`${BASE_URL}/register-user/${encodeURIComponent(phone)}`, {
@@ -473,6 +579,119 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 onChange={handleChange}
               />
             ))}
+
+            {/* Camera Section - Professional Design */}
+            <div className="col-span-full mt-5">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 sm:p-8 shadow-xl">
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                    <span className="text-3xl">📸</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    Profile Photo
+                  </h3>
+                  <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto">
+                    Please take a clear, well-lit photo of yourself. Make sure your face is visible and centered in the frame. This helps us verify your identity during check-in.
+                  </p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      ✓ Face clearly visible
+                    </span>
+                    <span className="flex items-center gap-1">
+                      ✓ Good lighting
+                    </span>
+                    <span className="flex items-center gap-1">
+                      ✓ Neutral background
+                    </span>
+                  </div>
+                </div>
+
+                {!capturedImage && !isCameraOpen && (
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={openCamera}
+                      className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 sm:py-6 px-4 sm:px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-3 font-semibold"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Open Camera
+                    </button>
+                  </div>
+                )}
+
+                {isCameraOpen && (
+                  <div className="flex flex-col items-center gap-6">
+                    <div className="relative w-full max-w-lg">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full rounded-2xl shadow-2xl border-4 border-green-200"
+                      />
+                      <div className="absolute inset-0 rounded-2xl border-4 border-dashed border-white/50 pointer-events-none"></div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
+                      <button
+                        type="button"
+                        onClick={capturePhoto}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 font-semibold"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Capture Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeCamera}
+                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 font-semibold"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {capturedImage && (
+                  <div className="flex flex-col items-center gap-6">
+                    <div className="relative w-full max-w-lg">
+                      <img
+                        src={capturedImage}
+                        alt="Your Profile Photo"
+                        className="w-full rounded-2xl shadow-2xl border-4 border-green-200"
+                      />
+                      <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Photo Captured
+                      </div>
+                    </div>
+                    <p className="text-green-700 font-medium text-center">
+                      Great! Your photo looks good. You can retake it if needed.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retakePhoto}
+                      className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 font-semibold"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Retake Photo
+                    </button>
+                  </div>
+                )}
+
+                <canvas ref={canvasRef} className="hidden" />
+              </div>
+            </div>
 
             {/* Submit */}
             <div className="col-span-full flex justify-center mt-10">
