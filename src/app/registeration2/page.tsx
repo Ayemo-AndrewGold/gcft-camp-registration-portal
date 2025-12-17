@@ -223,10 +223,17 @@ function Register2Content() {
         video: { facingMode: 'user' } 
       });
       
-      if (videoRef.current) {
+      if (videoRef.current && canvasRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsCameraOpen(true);
+        
+        // Wait for video to be ready, then auto-capture after 2 seconds
+        videoRef.current.onloadedmetadata = () => {
+          setTimeout(() => {
+            capturePhoto();
+          }, 2000); // 2 second delay to let user see themselves
+        };
       }
     } catch (err) {
       toast.error('Camera access denied or not available');
@@ -581,17 +588,19 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             ))}
 
             {/* Camera Section - Professional Design */}
-            <div className="col-span-full mt-5">
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 sm:p-8 shadow-xl">
+            <div className="col-span-full mt-8">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-xl">
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
                     <span className="text-3xl">📸</span>
                   </div>
                   <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                    Profile Photo
+                    Profile Photo {/* Add (Required) when ready: Profile Photo (Required) */}
                   </h3>
                   <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto">
+                    {/* CHANGE THIS TEXT WHEN PHOTO IS REQUIRED */}
                     Please take a clear, well-lit photo of yourself. Make sure your face is visible and centered in the frame. This helps us verify your identity during check-in.
+                    {/* When required, change to: "A clear profile photo is required for registration. Make sure your face is visible..." */}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-gray-500">
                     <span className="flex items-center gap-1">
@@ -611,7 +620,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                     <button
                       type="button"
                       onClick={openCamera}
-                      className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 sm:py-6 px-4 sm:px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-3 font-semibold"
+                      className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-3 font-semibold"
                     >
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -632,28 +641,14 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                         className="w-full rounded-2xl shadow-2xl border-4 border-green-200"
                       />
                       <div className="absolute inset-0 rounded-2xl border-4 border-dashed border-white/50 pointer-events-none"></div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
-                      <button
-                        type="button"
-                        onClick={capturePhoto}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 font-semibold"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Capture Photo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={closeCamera}
-                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 font-semibold"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Cancel
-                      </button>
+                      {/* Countdown/Loading indicator */}
+                      <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+                          <p className="text-white text-lg font-semibold">Capturing photo...</p>
+                          <p className="text-white/80 text-sm">Get ready!</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
