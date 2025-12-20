@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, ChangeEvent, FormEvent, Suspense, useRef } from "react";
+import React, { useState, useEffect, ChangeEvent, FormEvent, Suspense, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
+import Webcam from "react-webcam"; // ← New import
 
 // --------------------------------------------
 // Types
@@ -153,6 +154,127 @@ const FormField: React.FC<FormFieldProps> = ({
 };
 
 // --------------------------------------------
+// Photo Capture Field Component
+// --------------------------------------------
+interface PhotoCaptureFieldProps {
+  onPhotoSelect: (file: File | null) => void;
+}
+
+const PhotoCaptureField: React.FC<PhotoCaptureFieldProps> = ({ onPhotoSelect }) => {
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const webcamRef = useRef<Webcam>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const capturePhoto = useCallback(() => {
+    const screenshot = webcamRef.current?.getScreenshot();
+    if (screenshot) {
+      fetch(screenshot)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], "captured-photo.jpg", { type: "image/jpeg" });
+          setPhotoPreview(screenshot);
+          onPhotoSelect(file);
+          setIsCameraOpen(false);
+        });
+    }
+  }, [webcamRef, onPhotoSelect]);
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoPreview(URL.createObjectURL(file));
+      onPhotoSelect(file);
+    }
+  };
+
+  const openCamera = () => setIsCameraOpen(true);
+  const openFilePicker = () => fileInputRef.current?.click();
+
+  return (
+    <div className="flex flex-col gap-3 font-[lexend] col-span-full">
+      <label className="text-white font-medium">
+        Passport Photo <span className="text-red-400">*</span>
+      </label>
+
+      {/* Preview */}
+      <div className="flex justify-center">
+        {photoPreview ? (
+          <img
+            src={photoPreview}
+            alt="Passport preview"
+            className="w-48 h-48 object-cover rounded-full border-4 border-white shadow-lg"
+          />
+        ) : (
+          <div className="w-48 h-48 bg-gray-300 border-4 border-dashed border-white rounded-full flex items-center justify-center">
+            <p className="text-gray-600 text-center px-4">No photo yet</p>
+          </div>
+        )}
+      </div>
+
+      {/* Buttons */}
+      <div className="flex justify-center gap-6 mt-4">
+        <button
+          type="button"
+          onClick={openCamera}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition flex items-center gap-2"
+        >
+          📸 Take Photo
+        </button>
+
+        <button
+          type="button"
+          onClick={openFilePicker}
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition flex items-center gap-2"
+        >
+          📁 Upload Photo
+        </button>
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
+      {/* Camera Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+          <div className="relative bg-white rounded-xl overflow-hidden max-w-lg w-full">
+            <button
+              onClick={() => setIsCameraOpen(false)}
+              className="absolute top-4 right-4 z-10 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-2xl hover:bg-red-700"
+            >
+              ×
+            </button>
+
+            <Webcam
+              audio={false}
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              videoConstraints={{ facingMode: "user" }}
+              className="w-full aspect-video"
+            />
+
+            <div className="p-6 bg-gray-100 flex justify-center">
+              <button
+                onClick={capturePhoto}
+                className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 rounded-full text-lg flex items-center gap-2"
+              >
+                📸 Capture Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --------------------------------------------
 // Main Component
 // --------------------------------------------
 function Register2Content() {
@@ -161,16 +283,10 @@ function Register2Content() {
 
   const [phone, setPhone] = useState("");
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [passportPhoto, setPassportPhoto] = useState<File | null>(null); // ← New state
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [dateError, setDateError] = useState("");
-
-  // Camera states
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   const BASE_URL =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -207,71 +323,6 @@ function Register2Content() {
     fetchCategories();
   }, []);
 
-  // Cleanup camera stream on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  // Camera functions
-  const openCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' } 
-      });
-      
-      if (videoRef.current && canvasRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setIsCameraOpen(true);
-        
-        // Wait for video to be ready, then auto-capture after 2 seconds
-        videoRef.current.onloadedmetadata = () => {
-          setTimeout(() => {
-            capturePhoto();
-          }, 2000); // 2 second delay to let user see themselves
-        };
-      }
-    } catch (err) {
-      toast.error('Camera access denied or not available');
-      console.error('Error accessing camera:', err);
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        const imageData = canvas.toDataURL('image/png');
-        setCapturedImage(imageData);
-        closeCamera();
-        toast.success('Photo captured successfully!');
-      }
-    }
-  };
-
-  const closeCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraOpen(false);
-  };
-
-  const retakePhoto = () => {
-    setCapturedImage(null);
-  };
-
 // Form change handler
 const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   const { id, value } = e.target;
@@ -281,24 +332,21 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     let autoGender = "";
     let autoMaritalStatus = "";
     
-    // Define category mappings
     const categoryMap: Record<string, { gender: string; marital: string }> = {
       "Young Brothers": { gender: "Male", marital: "Single" },
-      "Married Brothers": { gender: "Male", marital: "Married" },
-      "Teens below 18 (male)": { gender: "Male", marital: "Single" },
+      "Married (male)": { gender: "Male", marital: "Married" },
+      "Teens Below 18 (male)": { gender: "Male", marital: "Single" },
       "Young Sisters": { gender: "Female", marital: "Single" },
-      "Married Sisters": { gender: "Female", marital: "Married" },
-      "Teens below 18 (female)": { gender: "Female", marital: "Single" },
+      "Married (female)": { gender: "Female", marital: "Married" },
+      "Teens Below 18 (female)": { gender: "Female", marital: "Single" },
       "Nursing Mothers": { gender: "Female", marital: "Married" },
     };
     
-    // Get auto-filled values based on category
     if (categoryMap[value]) {
       autoGender = categoryMap[value].gender;
       autoMaritalStatus = categoryMap[value].marital;
     }
     
-    // Update category, gender, and marital_status
     setFormData({ 
       ...formData, 
       [id]: value, 
@@ -324,10 +372,11 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
 
   setFormData({ ...formData, [id]: value });
 };
+
   // Show/hide children fields based on marital status
   const showChildrenFields = formData.marital_status === "Married";
 
-  // Required fields - matches backend schema
+  // Required fields
   const fields: FieldType[] = [
     { id: "category", label: "Category", required: true, options: categories },
     { id: "first_name", label: "Full Name", required: true },
@@ -379,96 +428,52 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     },
   ];
 
-  // UNCOMMENT THIS LINE TO MAKE PHOTO REQUIRED
-  // const isFormValid =
-  //   fields.filter((f) => f.required).every((f) => formData[f.id]) && 
-  //   formData.state && 
-  //   capturedImage && // Photo is required
-  //   !dateError;
-
-  // COMMENT THIS LINE WHEN PHOTO IS REQUIRED
   const isFormValid =
     fields.filter((f) => f.required).every((f) => formData[f.id]) && 
     formData.state && 
+    passportPhoto && // ← Photo is now required
     !dateError;
 
-  // Submit handler with debug logging
+  // Submit handler
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isFormValid) {
-      toast.error("Please fill all required fields");
+      toast.error("Please fill all required fields including passport photo");
       return;
     }
-
-    // UNCOMMENT THIS BLOCK WHEN PHOTO IS REQUIRED
-    // if (!capturedImage) {
-    //   toast.error("Please take your profile photo before submitting");
-    //   return;
-    // }
 
     setLoading(true);
 
     try {
-      // Prepare data to match backend schema exactly
-      const submitData = {
-        category: formData.category,
-        first_name: formData.first_name,
-        age_range: formData.age_range,
-        marital_status: formData.marital_status,
-        no_children: formData.no_children ? parseInt(formData.no_children) : null,
-        names_children: formData.names_children || null,
-        country: formData.country,
-        state: formData.state,
-        arrival_date: formData.arrival_date,
-        medical_issues: formData.medical_issues || null,
-        local_assembly: formData.local_assembly,
-        local_assembly_address: formData.local_assembly_address,
-        photo: capturedImage || null, // Include the captured photo
-      };
+      const formDataToSend = new FormData();
 
-      console.log("Submitting data:", submitData);
+      formDataToSend.append("category", formData.category);
+      formDataToSend.append("first_name", formData.first_name);
+      formDataToSend.append("age_range", formData.age_range);
+      formDataToSend.append("marital_status", formData.marital_status);
+      if (formData.no_children) formDataToSend.append("no_children", formData.no_children.toString());
+      if (formData.names_children) formDataToSend.append("names_children", formData.names_children);
+      formDataToSend.append("country", formData.country);
+      formDataToSend.append("state", formData.state);
+      formDataToSend.append("arrival_date", formData.arrival_date);
+      if (formData.medical_issues) formDataToSend.append("medical_issues", formData.medical_issues);
+      formDataToSend.append("local_assembly", formData.local_assembly);
+      formDataToSend.append("local_assembly_address", formData.local_assembly_address);
+      formDataToSend.append("passport_photo", passportPhoto!); // ← Send the photo
 
-      // =================================================================
-      // TODO: REPLACE THIS WITH YOUR PHOTO UPLOAD API ENDPOINT
-      // =================================================================
-      // If your backend needs the photo uploaded separately:
-      // 
-      // let photoUrl = null;
-      // if (capturedImage) {
-      //   const photoFormData = new FormData();
-      //   const blob = await fetch(capturedImage).then(r => r.blob());
-      //   photoFormData.append('photo', blob, 'profile.png');
-      //   
-      //   const photoResponse = await fetch(`${BASE_URL}/upload-photo`, {
-      //     method: 'POST',
-      //     body: photoFormData,
-      //   });
-      //   
-      //   if (photoResponse.ok) {
-      //     const photoData = await photoResponse.json();
-      //     photoUrl = photoData.url; // Get the uploaded photo URL
-      //   }
-      // }
-      // 
-      // Then include photoUrl in submitData instead of base64:
-      // photo: photoUrl || null,
-      // =================================================================
+      console.log("Submitting with photo:", passportPhoto?.name);
 
-      // Register the full user details directly
       const res = await fetch(`${BASE_URL}/register-user/${encodeURIComponent(phone)}`, {
         method: "POST",
-        body: JSON.stringify(submitData),
-        headers: { "Content-Type": "application/json" },
+        body: formDataToSend,
       });
 
       const responseText = await res.text();
       
-      // DEBUG LOGGING
       console.log("=== DEBUG INFO ===");
       console.log("Response status:", res.status);
       console.log("Response OK?:", res.ok);
       console.log("Response text:", responseText);
-      console.log("Response text length:", responseText.length);
       console.log("==================");
 
       if (!res.ok) {
@@ -484,7 +489,6 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         throw new Error(errorMessage);
       }
 
-      // Check if response is empty
       if (!responseText || responseText.trim() === '') {
         console.warn("Empty response received but status was OK");
         toast.success("🎉 Registration successful!");
@@ -492,7 +496,6 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         return;
       }
 
-      // Try to parse response
       try {
         const userData = JSON.parse(responseText);
         console.log("Parsed user data:", userData);
@@ -500,8 +503,6 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
       } catch (parseError) {
         console.error("Failed to parse response:", parseError);
-        console.error("Response that failed to parse:", responseText);
-        // Still redirect even if parse fails, since registration was successful
         toast.success("🎉 Registration completed!");
         router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
       }
@@ -515,7 +516,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   };
 
   // --------------------------------------------
-  // UI (Using div instead of form)
+  // UI
   // --------------------------------------------
   return (
     <section
@@ -587,106 +588,8 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
               />
             ))}
 
-            {/* Camera Section - Professional Design */}
-            <div className="col-span-full mt-8">
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-xl">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                    <span className="text-3xl">📸</span>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                    Profile Photo {/* Add (Required) when ready: Profile Photo (Required) */}
-                  </h3>
-                  <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto">
-                    {/* CHANGE THIS TEXT WHEN PHOTO IS REQUIRED */}
-                    Please take a clear, well-lit photo of yourself. Make sure your face is visible and centered in the frame. This helps us verify your identity during check-in.
-                    {/* When required, change to: "A clear profile photo is required for registration. Make sure your face is visible..." */}
-                  </p>
-                  <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      ✓ Face clearly visible
-                    </span>
-                    <span className="flex items-center gap-1">
-                      ✓ Good lighting
-                    </span>
-                    <span className="flex items-center gap-1">
-                      ✓ Neutral background
-                    </span>
-                  </div>
-                </div>
-
-                {!capturedImage && !isCameraOpen && (
-                  <div className="flex justify-center">
-                    <button
-                      type="button"
-                      onClick={openCamera}
-                      className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-3 font-semibold"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      Open Camera
-                    </button>
-                  </div>
-                )}
-
-                {isCameraOpen && (
-                  <div className="flex flex-col items-center gap-6">
-                    <div className="relative w-full max-w-lg">
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full rounded-2xl shadow-2xl border-4 border-green-200"
-                      />
-                      <div className="absolute inset-0 rounded-2xl border-4 border-dashed border-white/50 pointer-events-none"></div>
-                      {/* Countdown/Loading indicator */}
-                      <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
-                          <p className="text-white text-lg font-semibold">Capturing photo...</p>
-                          <p className="text-white/80 text-sm">Get ready!</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {capturedImage && (
-                  <div className="flex flex-col items-center gap-6">
-                    <div className="relative w-full max-w-lg">
-                      <img
-                        src={capturedImage}
-                        alt="Your Profile Photo"
-                        className="w-full rounded-2xl shadow-2xl border-4 border-green-200"
-                      />
-                      <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        Photo Captured
-                      </div>
-                    </div>
-                    <p className="text-green-700 font-medium text-center">
-                      Great! Your photo looks good. You can retake it if needed.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={retakePhoto}
-                      className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 font-semibold"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Retake Photo
-                    </button>
-                  </div>
-                )}
-
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
-            </div>
+            {/* ← NEW: Photo Capture Field */}
+            <PhotoCaptureField onPhotoSelect={setPassportPhoto} />
 
             {/* Submit */}
             <div className="col-span-full flex justify-center mt-10">
