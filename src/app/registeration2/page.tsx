@@ -3,7 +3,7 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent, Suspense, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import Webcam from "react-webcam"; // ← New import
+import Webcam from "react-webcam";
 
 // --------------------------------------------
 // Types
@@ -283,7 +283,7 @@ function Register2Content() {
 
   const [phone, setPhone] = useState("");
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [passportPhoto, setPassportPhoto] = useState<File | null>(null); // ← New state
+  const [passportPhoto, setPassportPhoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [dateError, setDateError] = useState("");
@@ -292,7 +292,6 @@ function Register2Content() {
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     "https://gcft-camp.onrender.com/api/v1";
 
-  // Load phone from query param
   useEffect(() => {
     const phoneParam = searchParams.get("phone");
 
@@ -304,7 +303,6 @@ function Register2Content() {
     }
   }, [searchParams, router]);
 
-  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -323,60 +321,56 @@ function Register2Content() {
     fetchCategories();
   }, []);
 
-// Form change handler
-const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-  const { id, value } = e.target;
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target;
 
-  // Auto-fill gender and marital status based on category selection
-  if (id === "category") {
-    let autoGender = "";
-    let autoMaritalStatus = "";
-    
-    const categoryMap: Record<string, { gender: string; marital: string }> = {
-      "Young Brothers": { gender: "Male", marital: "Single" },
-      "Married (male)": { gender: "Male", marital: "Married" },
-      "Teens Below 18 (male)": { gender: "Male", marital: "Single" },
-      "Young Sisters": { gender: "Female", marital: "Single" },
-      "Married (female)": { gender: "Female", marital: "Married" },
-      "Teens Below 18 (female)": { gender: "Female", marital: "Single" },
-      "Nursing Mothers": { gender: "Female", marital: "Married" },
-    };
-    
-    if (categoryMap[value]) {
-      autoGender = categoryMap[value].gender;
-      autoMaritalStatus = categoryMap[value].marital;
-    }
-    
-    setFormData({ 
-      ...formData, 
-      [id]: value, 
-      gender: autoGender,
-      marital_status: autoMaritalStatus 
-    });
-    return;
-  }
-
-  if (id === "arrival_date") {
-    const selectedDate = new Date(value);
-    const min = new Date("2026-03-01");
-    const max = new Date("2026-04-30");
-
-    if (selectedDate < min || selectedDate > max) {
-      setDateError("❌ Please select a date between March and April 2026.");
-      setFormData({ ...formData, arrival_date: "" });
+    if (id === "category") {
+      let autoGender = "";
+      let autoMaritalStatus = "";
+      
+      const categoryMap: Record<string, { gender: string; marital: string }> = {
+        "Young Brothers": { gender: "Male", marital: "Single" },
+        "Married (male)": { gender: "Male", marital: "Married" },
+        "Teens Below 18 (male)": { gender: "Male", marital: "Single" },
+        "Young Sisters": { gender: "Female", marital: "Single" },
+        "Married (female)": { gender: "Female", marital: "Married" },
+        "Teens Below 18 (female)": { gender: "Female", marital: "Single" },
+        "Nursing Mothers": { gender: "Female", marital: "Married" },
+      };
+      
+      if (categoryMap[value]) {
+        autoGender = categoryMap[value].gender;
+        autoMaritalStatus = categoryMap[value].marital;
+      }
+      
+      setFormData({ 
+        ...formData, 
+        [id]: value, 
+        gender: autoGender,
+        marital_status: autoMaritalStatus 
+      });
       return;
-    } else {
-      setDateError("");
     }
-  }
 
-  setFormData({ ...formData, [id]: value });
-};
+    if (id === "arrival_date") {
+      const selectedDate = new Date(value);
+      const min = new Date("2026-03-01");
+      const max = new Date("2026-04-30");
 
-  // Show/hide children fields based on marital status
+      if (selectedDate < min || selectedDate > max) {
+        setDateError("❌ Please select a date between March and April 2026.");
+        setFormData({ ...formData, arrival_date: "" });
+        return;
+      } else {
+        setDateError("");
+      }
+    }
+
+    setFormData({ ...formData, [id]: value });
+  };
+
   const showChildrenFields = formData.marital_status === "Married";
 
-  // Required fields
   const fields: FieldType[] = [
     { id: "category", label: "Category", required: true, options: categories },
     { id: "first_name", label: "Full Name", required: true },
@@ -413,7 +407,6 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     { id: "local_assembly_address", label: "Assembly Address", required: true },
   ];
 
-  // Children fields (conditional)
   const childrenFields: FieldType[] = [
     { 
       id: "no_children", 
@@ -431,14 +424,15 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   const isFormValid =
     fields.filter((f) => f.required).every((f) => formData[f.id]) && 
     formData.state && 
-    passportPhoto && // ← Photo is now required
+    passportPhoto && 
     !dateError;
 
-  // Submit handler
+  // FIXED: Backend requires the file to be sent as "file"
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) {
-      toast.error("Please fill all required fields including passport photo");
+
+    if (!isFormValid || !passportPhoto) {
+      toast.error("Please fill all required fields and add a photo");
       return;
     }
 
@@ -459,9 +453,11 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       if (formData.medical_issues) formDataToSend.append("medical_issues", formData.medical_issues);
       formDataToSend.append("local_assembly", formData.local_assembly);
       formDataToSend.append("local_assembly_address", formData.local_assembly_address);
-      formDataToSend.append("passport_photo", passportPhoto!); // ← Send the photo
 
-      console.log("Submitting with photo:", passportPhoto?.name);
+      // ← CRITICAL FIX: Backend expects the image file under the name "file"
+      formDataToSend.append("file", passportPhoto);
+
+      console.log("Submitting registration with photo:", passportPhoto.name);
 
       const res = await fetch(`${BASE_URL}/register-user/${encodeURIComponent(phone)}`, {
         method: "POST",
@@ -469,55 +465,36 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       });
 
       const responseText = await res.text();
-      
-      console.log("=== DEBUG INFO ===");
-      console.log("Response status:", res.status);
-      console.log("Response OK?:", res.ok);
-      console.log("Response text:", responseText);
-      console.log("==================");
+
+      console.log("=== RESPONSE DEBUG ===");
+      console.log("Status:", res.status);
+      console.log("OK:", res.ok);
+      console.log("Body:", responseText);
+      console.log("=====================");
 
       if (!res.ok) {
-        let errorMessage = "Failed to register";
+        let errorMessage = "Registration failed";
         try {
           const errorData = JSON.parse(responseText);
           errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
         } catch {
-          errorMessage = responseText || errorMessage;
+          errorMessage = responseText || "Unknown error";
         }
-        
-        toast.error(`Registration failed: ${errorMessage}`);
-        throw new Error(errorMessage);
-      }
-
-      if (!responseText || responseText.trim() === '') {
-        console.warn("Empty response received but status was OK");
-        toast.success("🎉 Registration successful!");
-        router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
+        toast.error(`Error: ${errorMessage}`);
         return;
       }
 
-      try {
-        const userData = JSON.parse(responseText);
-        console.log("Parsed user data:", userData);
-        toast.success("🎉 Attendance booked successfully!");
-        router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
-      } catch (parseError) {
-        console.error("Failed to parse response:", parseError);
-        toast.success("🎉 Registration completed!");
-        router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
-      }
+      toast.success("🎉 Registration successful!");
+      router.push(`/successfulreg?phone=${encodeURIComponent(phone)}`);
 
-    } catch (error: any) {
-      console.error("Registration error:", error);
-      toast.error(error.message || "Something went wrong");
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // --------------------------------------------
-  // UI
-  // --------------------------------------------
   return (
     <section
       className="w-full py-16 px-6 sm:px-10 lg:px-20 min-h-screen flex items-center justify-center bg-cover bg-center relative font-[lexend] bg-white dark:bg-white text-[#0E0E1D] dark:text-[#0E0E1D]"
@@ -547,7 +524,6 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
               />
             ))}
 
-            {/* State */}
             {formData.country && (
               <div className="flex flex-col gap-1">
                 <label className="text-white font-medium">
@@ -578,7 +554,6 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
               </div>
             )}
 
-            {/* Children fields - only show if married */}
             {showChildrenFields && childrenFields.map((f) => (
               <FormField
                 key={f.id}
@@ -588,10 +563,8 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
               />
             ))}
 
-            {/* ← NEW: Photo Capture Field */}
             <PhotoCaptureField onPhotoSelect={setPassportPhoto} />
 
-            {/* Submit */}
             <div className="col-span-full flex justify-center mt-10">
               <button
                 onClick={handleSubmit}
