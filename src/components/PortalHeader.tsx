@@ -301,7 +301,7 @@ export default function PortalHeader() {
               />
               <div className='hidden md:block'>
                 <h2 className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                  Admin
+                  GCFT Portal
                 </h2>
               </div>
             </div>
