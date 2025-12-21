@@ -369,7 +369,8 @@ function Register2Content() {
     setFormData({ ...formData, [id]: value });
   };
 
-  const showChildrenFields = formData.marital_status === "Married";
+  // Hide children fields for "Married (male)" category, otherwise show only if Married
+  const showChildrenFields = formData.category === "Married (male)" ? false : formData.marital_status === "Married";
 
   const fields: FieldType[] = [
     { id: "category", label: "Category", required: true, options: categories },
@@ -410,13 +411,13 @@ function Register2Content() {
   const childrenFields: FieldType[] = [
     { 
       id: "no_children", 
-      label: "Number of Children", 
+      label: "Number of Children (age 0-10)", 
       type: "number",
       placeholder: "e.g., 2"
     },
     { 
-      id: "names_children", 
-      label: "Names of Children", 
+      id: "names_childre", 
+      label: "Names of Children (age 0-10)", 
       placeholder: "e.g., John, Mary"
     },
   ];
