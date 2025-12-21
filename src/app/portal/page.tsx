@@ -14,16 +14,17 @@ interface UserData {
   country: string;
   state: string;
   arrival_date: string;
-  local_assembly: string;
+  local_assembly: string | null; // Allow null
+  local_assembly_address?: string | null;
   hall_name?: string;
   floor?: string;
   bed_number?: string;
   is_active?: boolean;
+  profile_picture_url?: string;
 }
 
 const Portal: React.FC = () => {
   const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const [activating, setActivating] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -34,7 +35,6 @@ const Portal: React.FC = () => {
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     "https://gcft-camp.onrender.com/api/v1";
 
-  // Toast notification
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -91,9 +91,6 @@ const Portal: React.FC = () => {
     setActivating(true);
 
     try {
-      console.log("Activating user with phone:", cleanedPhone);
-      console.log("Full URL:", `${BASE_URL}/activate-user/${encodeURIComponent(cleanedPhone)}?number=${encodeURIComponent(cleanedPhone)}`);
-      
       const res = await fetch(
         `${BASE_URL}/activate-user/${encodeURIComponent(cleanedPhone)}?number=${encodeURIComponent(cleanedPhone)}`,
         {
@@ -104,13 +101,8 @@ const Portal: React.FC = () => {
         }
       );
 
-      console.log("Activation response status:", res.status);
-      
       if (res.ok) {
         const activatedUser: UserData = await res.json();
-        console.log("Activated user data:", activatedUser);
-        
-        // Update the user data with is_active set to true
         setUserData({
           ...userData,
           is_active: true,
@@ -120,8 +112,6 @@ const Portal: React.FC = () => {
         showToast("🎉 User verified successfully!", 'success');
       } else {
         const errorText = await res.text();
-        console.error("Activation error response:", errorText);
-        
         let errorMessage = "Failed to verify user";
         try {
           const errorData = JSON.parse(errorText);
@@ -133,7 +123,6 @@ const Portal: React.FC = () => {
         showToast(`❌ ${errorMessage}`, 'error');
       }
     } catch (error: any) {
-      console.error("Activation error:", error);
       showToast(`❌ ${error.message || "Error verifying user. Please try again."}`, 'error');
     } finally {
       setActivating(false);
@@ -148,7 +137,7 @@ const Portal: React.FC = () => {
 
   return (
     <section
-      className="w-full min-h-screen py-16 px-6 sm:px-10 lg:px-20 relative flex flex-col items-center justify-center bg-cover bg-center font-[lexend]"
+      className="w-full min-h-screen py-16 px-3 sm:px-10 lg:px-20 relative flex flex-col items-center justify-center bg-cover bg-center font-[lexend]"
       style={{ backgroundImage: `url('/images/campBg.jpg')` }}
     >
       <div className="absolute inset-0 bg-green-800/70"></div>
@@ -175,7 +164,7 @@ const Portal: React.FC = () => {
         VERIFY REGISTRANT
       </h1>
 
-      <div className="relative bg-white/30 backdrop-blur-md rounded-3xl shadow-2xl p-10 sm:p-12 w-full max-w-2xl text-center space-y-6">
+      <div className="relative bg-white/30 backdrop-blur-md rounded-3xl shadow-2xl py-5 px-2 sm:p-12 w-full max-w-2xl text-center space-y-6">
         <input
           type="tel"
           placeholder="e.g 08012345678 or +447911123456"
@@ -211,7 +200,27 @@ const Portal: React.FC = () => {
 
         {/* User Details Card */}
         {userData && (
-          <div className="mt-8 bg-white rounded-2xl shadow-xl p-6 text-left space-y-4">
+          <div className="mt-3 sm:mt-8 bg-white rounded-2xl shadow-xl p-6 text-left space-y-4">
+            {/* ← FIXED: Fallback image works when Dropbox link fails */}
+            <div className="flex justify-center mb-5">
+              {userData.profile_picture_url ? (
+                <div className="sm:w-52 w-32 h-32 sm:h-52 rounded-full overflow-hidden text-black bg-green-200 border-4 border-green-600 shadow-xl">
+                  <img
+                    src={userData.profile_picture_url}
+                    alt={userData.first_name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/images/campBg.jpg"; // Your local fallback
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="sm:w-52 w-32 h-32 sm:h-52 bg-green-200 rounded-full border-4 border-green-600 flex items-center justify-center shadow-xl">
+                  <User className="sm:w-28 w-16 sm:h-28 h-16 text-gray-600" />
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center justify-between border-b pb-4">
               <h2 className="text-xl font-bold text-gray-800">User Details</h2>
               <div className="flex flex-col items-end gap-1">
@@ -226,7 +235,6 @@ const Portal: React.FC = () => {
                     Incomplete
                   </span>
                 )}
-                {/* Verification Status */}
                 {userData.is_active ? (
                   <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold">
                     <CheckCircle className="w-4 h-4" />
@@ -306,7 +314,9 @@ const Portal: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-semibold text-gray-800">{userData.state}, {userData.country}</p>
+                  <p className="font-semibold text-gray-800">
+                    {userData.state || "N/A"}, {userData.country}
+                  </p>
                 </div>
               </div>
 
@@ -316,7 +326,9 @@ const Portal: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Assembly</p>
-                  <p className="font-semibold text-gray-800">{userData.local_assembly}</p>
+                  <p className="font-semibold text-gray-800">
+                    {userData.local_assembly || "N/A"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -367,7 +379,6 @@ const Portal: React.FC = () => {
               </div>
             )}
 
-            {/* Verification Info */}
             {userData.hall_name && !userData.is_active && (
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mt-4">
                 <p className="text-sm text-blue-800">
