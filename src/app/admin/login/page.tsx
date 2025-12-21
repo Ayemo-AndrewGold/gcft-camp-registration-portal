@@ -1,9 +1,11 @@
-import React from 'react'
 
-const Loginpage = () => {
+import AdminLogin from "@/components/AdminLogin";
+import React from "react";
+
+export default function page() {
   return (
-    <div>Login in </div>
-  )
+    <>
+      <AdminLogin />
+    </>
+  );
 }
-
-export default Loginpage
