@@ -12,7 +12,7 @@ const AdminLogout = () => {
     localStorage.removeItem("admin_token");
 
     // Redirect to login page
-    router.push("/login");
+    router.push("/admin/login");
   };
 
   return (

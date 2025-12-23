@@ -14,7 +14,7 @@ interface UserData {
   country: string;
   state: string;
   arrival_date: string;
-  local_assembly: string | null; // Allow null
+  local_assembly: string | null;
   local_assembly_address?: string | null;
   hall_name?: string;
   floor?: string;
@@ -201,19 +201,26 @@ const Portal: React.FC = () => {
         {/* User Details Card */}
         {userData && (
           <div className="mt-3 sm:mt-8 bg-white rounded-2xl shadow-xl p-6 text-left space-y-4">
-            {/* ← FIXED: Fallback image works when Dropbox link fails */}
+            {/* ← CORRECTED: Reliable fallback + click to view full photo */}
             <div className="flex justify-center mb-5">
               {userData.profile_picture_url ? (
-                <div className="sm:w-52 w-32 h-32 sm:h-52 rounded-full overflow-hidden text-black bg-green-200 border-4 border-green-600 shadow-xl">
+                <button
+                  onClick={() => window.open(userData.profile_picture_url, "_blank")}
+                  className="sm:w-52 w-32 h-32 sm:h-52 rounded-full overflow-hidden text-black bg-green-200 border-4 border-green-600 shadow-xl hover:opacity-90 transition group relative"
+                >
                   <img
                     src={userData.profile_picture_url}
                     alt={userData.first_name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/images/campBg.jpg"; // Your local fallback
+                      (e.target as HTMLImageElement).src = "/images/campBg.jpg"; // Your fallback image
+                      (e.target as HTMLImageElement).onerror = null;
                     }}
                   />
-                </div>
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                    <span className="text-white text-sm font-medium">Click to view photo</span>
+                  </div>
+                </button>
               ) : (
                 <div className="sm:w-52 w-32 h-32 sm:h-52 bg-green-200 rounded-full border-4 border-green-600 flex items-center justify-center shadow-xl">
                   <User className="sm:w-28 w-16 sm:h-28 h-16 text-gray-600" />
