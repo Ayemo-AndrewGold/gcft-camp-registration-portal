@@ -208,7 +208,7 @@ const addCategory = async () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">

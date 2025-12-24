@@ -84,8 +84,8 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
+    <div className="  min-h-screen  p-2 sm:p-6 lg:p-8 bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full  sm:mt-4  rounded-lg shadow-md">
+      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
@@ -99,7 +99,7 @@ const AdminDashboard: React.FC = () => {
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           {/* Total Bedspace */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
+          <div className="bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium opacity-90">Total Bedspace</h4>
               <svg className="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">

@@ -113,7 +113,7 @@ export default function AdminSidebar () {
           fixed left-0 top-0 h-screen shadow-md p-4 font-[lexend] transition-all duration-300 ease-in-out z-50
           ${isDarkMode
             ? 'bg-gradient-to-b from-gray-800 via-gray-900 to-gray-800 border-gray-700'
-            : 'bg-gradient-to-b from-blue-100 via-white to-green-300'
+            : 'bg-gradient-to-b from-blue-100 via-green-400 to-green-900'
           }
           w-72 
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -132,7 +132,7 @@ export default function AdminSidebar () {
               className='bg-white p-1 rounded-full'
             />
             <h2 className={isDarkMode ? 'text-blue-400' : 'text-green-600'}>
-              GCFT PORTAL
+              GCFT ADMIN
             </h2>
           </div>
           

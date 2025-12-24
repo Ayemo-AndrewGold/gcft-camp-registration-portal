@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Bell, Moon, Search, Sun, X } from 'lucide-react';
+import { useDarkMode } from "@/app/context/DarkModeContext"
 
 export default function AdminHeader() {
+
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -102,7 +104,7 @@ export default function AdminHeader() {
         className={`fixed top-0 right-0 h-16 border-b border-gray-200 shadow-md z-40 font-[lexend] transition-all duration-300 ease-in-out
           ${isDarkMode 
             ? 'bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800' 
-            : 'bg-gradient-to-l from-blue-100 via-white to-green-200'
+            : 'bg-gradient-to-r from-blue-100 via-green-400 to-green-900'
           }
           left-0 pl-16
           lg:pl-0
@@ -300,7 +302,7 @@ export default function AdminHeader() {
                 priority
               />
               <div className='hidden md:block'>
-                <h2 className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <h2 className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-white'}`}>
                   GCFT ADMIN
                 </h2>
               </div>

@@ -1,15 +1,14 @@
+// app/admin/(dashboard)/layout.tsx
 import AdminHeader from "@/components/AdminHeader";
 import AdminSidebar from "@/components/AdminSidebar";
 import { ReactNode } from "react";
+import DarkModeProvider from "@/components/DarkModeProvider"; // make sure provider is client
+import ClientLayout from "@/components/ClientLayout"; // wrapper for client components
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div>
-      <AdminHeader />
-      <AdminSidebar />
-      <main className="ml-65 pt-16 p-2 bg-gray-50 min-h-screen">
-        {children}
-      </main>
-    </div>
+    <DarkModeProvider>
+      <ClientLayout>{children}</ClientLayout>
+    </DarkModeProvider>
   );
 }
