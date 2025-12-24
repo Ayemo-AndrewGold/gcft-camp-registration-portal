@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
 
     // 🧠 Example auth check (replace with DB check)
-    if (email !== "admin@example.com" || password !== "admin123") {
+    if (email !== "gcft@admin.com" || password !== "gcftadmin12345") {
       return NextResponse.json(
         { message: "Invalid credentials" },
         { status: 401 }
