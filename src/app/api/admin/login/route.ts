@@ -16,20 +16,29 @@ export async function POST(request: Request) {
     }
 
     // 🧠 Example auth check (replace with DB check)
-    if (email !== "gcft@admin.com" || password !== "gcftadmin12345") {
-      return NextResponse.json(
-        { message: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
+   if (!email || !password) {
+    return NextResponse.json(
+      { message: "Email and password required" },
+      { status: 400 }
+    );
+  }
+
+    if (
+    email !== process.env.ADMIN_EMAIL ||
+    password !== process.env.ADMIN_PASSWORD
+  ) {
+    return NextResponse.json(
+      { message: "Invalid credentials" },
+      { status: 401 }
+    );
+  }
 
     // 🍪 Set auth cookie
-    (await cookies()).set("admin_token", "secure-admin-token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      sameSite: "lax",
-    });
+  (await cookies()).set("admin_token", "secure_admin_token", {
+    httpOnly: true,
+    path: "/",
+    sameSite: "strict",
+  });
 
     return NextResponse.json({ message: "Login successful" });
   } catch (error) {

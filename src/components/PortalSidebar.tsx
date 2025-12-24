@@ -14,7 +14,7 @@ export default function PortalSidebar() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   
   const links = [
-    {href: '/portal', label: 'Verify Campers', icon: AiOutlineDashboard},
+    {href: '/portal/dashboard', label: 'Verify Campers', icon: AiOutlineDashboard},
     {href: '/portal/verifiedcampers', label: 'Verified Campers', icon: User},
     {href: '/portal/allcampers', label: 'All Campers', icon: Hotel},
     {href: '/', label: 'Logout', icon: LogOut},

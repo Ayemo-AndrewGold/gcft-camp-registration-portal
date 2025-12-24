@@ -1,28 +1,37 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Get auth token from cookies
   const adminToken = request.cookies.get("admin_token")?.value;
+  const portalToken = request.cookies.get("portal_token")?.value;
 
-  // Protect dashboard routes
-  const isDashboardRoute = pathname.startsWith("/admin");
+  /* ---------------- ADMIN PROTECTION ---------------- */
+  if (
+    pathname.startsWith("/admin") &&
+    !pathname.startsWith("/admin/login") &&
+    !adminToken
+  ) {
+    return NextResponse.redirect(
+      new URL("/admin/login", request.url)
+    );
+  }
 
-  // Allow access to login page always
-  const isAuthPage = pathname.startsWith("/admin/login");
-
-  // If not logged in & trying to access admin pages
-  if (isDashboardRoute && !isAuthPage && !adminToken) {
-    const loginUrl = new URL("/admin/login", request.url);
-    return NextResponse.redirect(loginUrl);
+  /* ---------------- PORTAL PROTECTION ---------------- */
+  if (
+    pathname.startsWith("/portal") &&
+    !pathname.startsWith("/portal/login") &&
+    !portalToken
+  ) {
+    return NextResponse.redirect(
+      new URL("/portal/login", request.url)
+    );
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/portal/:path*"],
 };

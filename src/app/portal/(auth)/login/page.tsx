@@ -1,9 +1,13 @@
-import React from 'react'
+import PortalLogin from "@/components/PortalLogin"
 
-const page = () => {
+
+
+const PortalLoginpage = () => {
   return (
-    <div>page</div>
+    <div>
+      <PortalLogin />
+    </div>
   )
 }
 
-export default page
+export default PortalLoginpage
