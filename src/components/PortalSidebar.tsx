@@ -5,19 +5,31 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AiOutlineDashboard } from 'react-icons/ai';
 import { FiMenu, FiX } from 'react-icons/fi';
-import { Hotel, User, LogOut } from "lucide-react";
+import { Hotel, User, LogOut} from "lucide-react";
 import Image from 'next/image';
+import { useRouter } from "next/navigation";
+
 
 export default function PortalSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   
+
+  const router = useRouter();
+
+    const handleLogout = async () => {
+      await fetch("/api/portal/logout", {
+        method: "POST",
+    });
+
+      router.replace("/portal/login");
+    };
+
   const links = [
     {href: '/portal/dashboard', label: 'Verify Campers', icon: AiOutlineDashboard},
     {href: '/portal/verifiedcampers', label: 'Verified Campers', icon: User},
     {href: '/portal/allcampers', label: 'All Campers', icon: Hotel},
-    {href: '/', label: 'Logout', icon: LogOut},
   ];
 
   const pathname = usePathname();
@@ -210,6 +222,30 @@ export default function PortalSidebar() {
               )}
             </Link>
           ))}
+
+          <button
+            onClick={handleLogout}
+            className={`flex items-center gap-3 p-2 mt-20 transition-all duration-200 group ${
+              isDarkMode
+                ? "text-gray-300 hover:bg-gradient-to-l from-gray-700 via-gray-800 to-gray-700 hover:rounded-[2rem]"
+                : "text-gray-900 hover:bg-gradient-to-l from-blue-200 via-white to-purple-300 hover:rounded-[2rem]"
+            } ${isCollapsed ? "lg:justify-center" : ""}`}
+          >
+            <span className={`border rounded-full p-[0.3rem] ${
+              isDarkMode ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"
+            }`}>
+              <LogOut size={20} />
+            </span>
+
+            <span
+              className={`whitespace-nowrap transition-all duration-300 ${
+                isCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
+              }`}
+            >
+              Logout
+            </span>
+          </button>
+
         </nav>
 
         {/* Mobile: Logout/Close button at bottom */}

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
 const BACKGROUND_IMAGES: string[] = [
+  "/images/pastorBilly.jpg",
   "/images/img2021camp1.jpg",
   "/images/img2021camp2.jpg",
   "/images/img2021camp3.jpg",

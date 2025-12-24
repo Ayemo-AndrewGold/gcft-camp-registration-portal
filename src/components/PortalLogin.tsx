@@ -7,17 +7,15 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
 const BACKGROUND_IMAGES: string[] = [
-  "/images/img2021camp1.jpg",
-  "/images/img2021camp2.jpg",
-  "/images/img2021camp3.jpg",
-  "/images/img2021camp4.jpg",
-  "/images/img2021camp5.jpg",
-  "/images/img2021camp6.jpg",
-  "/images/img2021camp7.jpg",
-  "/images/img2021camp8.jpg",
-  "/images/img2021camp9.jpg",
-  "/images/img2021camp10.jpg",
-  "/images/img2021camp11.jpg",
+  "/images/pastorBilly.jpg",
+  "/images/phil.jpg",
+  "/images/ruthjoy.jpg",
+  "/images/Osas.jpg",
+  "/images/sisMercy.jpg",
+  "/images/sisterSingers.jpg",
+  "/images/img2021camp52.jpg",
+  "/images/img2021camp53.jpg",
+  "/images/img2021camp54.jpg"
 ];
 
 const PortalLogin: React.FC = () => {
@@ -89,7 +87,7 @@ const AuthHeader: React.FC = () => (
           GCFT <span className="text-white">-</span> CHURCH
         </h1>
         <p className="text-sm text-gray-500 font-bold">
-          Portal
+          PORTAL
         </p>
       </div>
     </div>
@@ -99,7 +97,7 @@ const AuthHeader: React.FC = () => (
 const LoginTitle: React.FC = () => (
   <div className="mb-6 font-[lexend]">
     <h2 className="text-3xl font-extrabold bg-linear-to-r from-green-700 to-lime-400 bg-clip-text text-transparent">
-      GCFT Portal LOGIN
+      GCFT PORTAL LOGIN
     </h2>
     <p className="mt-2 text-sm text-gray-600">
       Enter Administrative credentials to continue.

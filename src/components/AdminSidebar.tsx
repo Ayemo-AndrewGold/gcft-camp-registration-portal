@@ -9,20 +9,33 @@ import { FiMenu, FiX } from 'react-icons/fi';
 import { FiSettings, } from 'react-icons/fi'
 import { Hotel, HandHeart, User, LogOut } from "lucide-react";
 import Image from 'next/image';
+import { useRouter } from "next/navigation";
+
 
 export default function AdminSidebar () {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch("/api/admin/logout", {
+      method: "POST",
+    });
+
+    router.replace("/admin/login");
+  };
+
   
   const links = [
-    {href: '/admin/dashboard', label: 'Dasboard', icon: AiOutlineDashboard},
-    {href: '/admin/users', label: 'User Management', icon: User},
-    {href: '/admin/hostel', label:  'Hostel Management', icon: Hotel},
-    {href: '/admin/donation', label: 'Donation Analytics', icon: HandHeart},
-    {href: '/admin/settings', label: 'Settings', icon: FiSettings},
-    {href: '/admin/logout', label: 'Logout', icon: LogOut},
-  ]
+    { href: '/admin/dashboard', label: 'Dashboard', icon: AiOutlineDashboard },
+    { href: '/admin/users', label: 'User Management', icon: User },
+    { href: '/admin/hostel', label: 'Hostel Management', icon: Hotel },
+    { href: '/admin/donation', label: 'Donation Analytics', icon: HandHeart },
+    { href: '/admin/settings', label: 'Settings', icon: FiSettings },
+  ];
+
 
   const pathname = usePathname();
 
@@ -214,6 +227,29 @@ export default function AdminSidebar () {
               )}
             </Link>
           ))}
+          <button
+            onClick={handleLogout}
+            className={`flex items-center gap-3 p-2 mt-10 transition-all duration-200 group ${
+              isDarkMode
+                ? "text-gray-300 hover:bg-gradient-to-l from-gray-700 via-gray-800 to-gray-700 hover:rounded-[2rem]"
+                : "text-gray-900 hover:bg-gradient-to-l from-blue-200 via-white to-purple-300 hover:rounded-[2rem]"
+            } ${isCollapsed ? "lg:justify-center" : ""}`}
+          >
+            <span className={`border rounded-full p-[0.3rem] ${
+              isDarkMode ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"
+            }`}>
+              <LogOut size={20} />
+            </span>
+
+            <span
+              className={`whitespace-nowrap transition-all duration-300 ${
+                isCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
+              }`}
+            >
+              Logout
+            </span>
+          </button>
+
         </nav>
 
         {/* Mobile: Logout/Close button at bottom */}
