@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw, Calendar } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -21,6 +21,7 @@ interface UserData {
   state?: string;
   local_assembly?: string;
   is_active?: boolean;
+  arrival_date?: string;
 }
 
 const AllCampers: React.FC = () => {
@@ -57,6 +58,21 @@ const AllCampers: React.FC = () => {
       }
     }
     return "—";
+  };
+
+  const formatArrivalDate = (dateString?: string) => {
+    if (!dateString) return "—";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch {
+      return dateString;
+    }
   };
 
   // Fetch users with their active status
@@ -139,7 +155,7 @@ const AllCampers: React.FC = () => {
 
   // Calculate stats
   const verifiedCount = users.filter(u => u.is_active === true).length;
-  const pendingCount = users.filter(u => !u.is_active).length;
+  const notVerifiedCount = users.filter(u => !u.is_active).length;
 
   const handleUserClick = (user: UserData) => {
     setSelectedUser(user);
@@ -259,9 +275,9 @@ const AllCampers: React.FC = () => {
   if (loading) {
     return (
       <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
-        <section className="bg-white min-h-screen rounded-lg shadow-md  flex items-center justify-center">
+        <section className="bg-white min-h-screen rounded-lg shadow-md flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto "></div>
+            <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto"></div>
             <p className="text-gray-600 text-lg">Loading users...</p>
           </div>
         </section>
@@ -289,7 +305,7 @@ const AllCampers: React.FC = () => {
         </div>
       )}
       
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-6 lg:p-8">
+      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-3 lg:p-3">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -320,8 +336,8 @@ const AllCampers: React.FC = () => {
                 <p className="text-2xl font-bold text-blue-600">{verifiedCount}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
+                <p className="text-sm text-gray-500">Not Verified</p>
+                <p className="text-2xl font-bold text-orange-600">{notVerifiedCount}</p>
               </div>
             </div>
           </div>
@@ -364,10 +380,11 @@ const AllCampers: React.FC = () => {
         <div className="overflow-x-auto rounded-lg border-2 border-gray-200 shadow-sm">
           <table className="w-full">
             <thead>
-              <tr className="bg-linear-to-r from-green-500 to-green-600 text-white">
+              <tr className="bg-gradient-to-r from-green-500 to-green-600 text-white">
                 <th className="p-4 text-left font-semibold">Status</th>
                 <th className="p-4 text-left font-semibold">Name</th>
                 <th className="p-4 text-left font-semibold">Phone</th>
+                <th className="p-4 text-left font-semibold">Arrival Date</th>
                 <th className="p-4 text-left font-semibold">Category</th>
                 <th className="p-4 text-left font-semibold">Hall</th>
                 <th className="p-4 text-left font-semibold">Floor</th>
@@ -393,7 +410,7 @@ const AllCampers: React.FC = () => {
                       ) : (
                         <span className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
                           <XCircle className="w-4 h-4" />
-                          Pending
+                          Not Verified
                         </span>
                       )}
                     </td>
@@ -412,6 +429,12 @@ const AllCampers: React.FC = () => {
                       <div className="flex items-center gap-2 text-gray-700">
                         <Phone className="w-4 h-4 text-gray-400" />
                         {getValue(user, "phone_number")}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm">{formatArrivalDate(user.arrival_date)}</span>
                       </div>
                     </td>
                     <td className="p-4">
@@ -461,7 +484,7 @@ const AllCampers: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="text-center p-8">
+                  <td colSpan={9} className="text-center p-8">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <User className="w-16 h-16 mb-4" />
                       <p className="text-lg font-medium">No users found</p>
@@ -502,7 +525,7 @@ const AllCampers: React.FC = () => {
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               {/* Modal Header */}
-              <div className="sticky top-0 bg-linear-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
+              <div className="sticky top-0 bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-bold">Edit User</h2>
