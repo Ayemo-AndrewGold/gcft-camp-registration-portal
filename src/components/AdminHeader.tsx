@@ -118,7 +118,7 @@ export default function AdminHeader() {
               isDarkMode ? 'text-white' : 'text-gray-800'
             }`}>
               <span className='hidden md:inline'>Welcome to GCFT ADMIN 👋</span>
-              <span className='md:hidden'>GCFT Portal 👋</span>
+              <span className='md:hidden'>Admin Dashboard</span>
             </h1>
             
             {/* Desktop Search Bar */}
