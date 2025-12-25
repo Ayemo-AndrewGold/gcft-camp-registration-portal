@@ -384,7 +384,7 @@ function Register2Content() {
         { value: "18-25", label: "18-25" },
         { value: "26-35", label: "26-35" },
         { value: "36-45", label: "36-45" },
-        { value: "46-55", label: "46-55" },
+        { value: "45-55", label: "45-55" },
         { value: "56-65", label: "56-65" },
         { value: "66-70", label: "66-70" },
         { value: "71+", label: "71+" },
