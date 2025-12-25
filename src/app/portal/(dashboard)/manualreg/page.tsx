@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, UserX, UserPlus, Bed, Home, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock } from "lucide-react";
+import { Search, UserX, UserPlus, Bed, Home, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -19,12 +19,29 @@ interface UserData {
   arrival_date?: string;
 }
 
+interface NewUserRegistration {
+  phone_number: string;
+  first_name: string;
+  category: string;
+  age_range: string;
+  marital_status: string;
+  no_children: number;
+  names_children: string;
+  country: string;
+  state: string;
+  arrival_date: string;
+  medical_issues: string;
+  local_assembly: string;
+  local_assembly_address: string;
+  gender: string;
+}
+
 const ManualPage: React.FC = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-  const [reallocateMode, setReallocateMode] = useState<'release' | 'assign' | null>(null);
+  const [reallocateMode, setReallocateMode] = useState<'release' | 'assign' | 'reassign' | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [processing, setProcessing] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -34,6 +51,11 @@ const ManualPage: React.FC = () => {
   const [newHall, setNewHall] = useState<string>("");
   const [newFloor, setNewFloor] = useState<string>("");
   const [newBed, setNewBed] = useState<string>("");
+
+  // New user registration data
+  const [newUserPhone, setNewUserPhone] = useState<string>("");
+  const [newUserData, setNewUserData] = useState<Partial<NewUserRegistration>>({});
+  const [registrationStep, setRegistrationStep] = useState<'phone' | 'details' | 'confirm'>('phone');
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
@@ -58,7 +80,6 @@ const ManualPage: React.FC = () => {
       const data = await res.json();
       if (!Array.isArray(data)) throw new Error("Unexpected response format");
 
-      // Fetch active users
       const activeUsersRes = await fetch(`${API_BASE}/active-users`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' },
@@ -66,16 +87,12 @@ const ManualPage: React.FC = () => {
       const activeUsers = activeUsersRes.ok ? await activeUsersRes.json() : [];
       const activePhones = new Set(activeUsers.map((u: any) => u.phone_number));
 
-      // Filter to show ONLY unverified users
       const unverifiedUsers = data
         .filter((user: any) => !activePhones.has(user.phone_number))
         .map((user: any) => ({
           ...user,
           is_active: false
         }));
-
-      console.log("Total registered users:", data.length);
-      console.log("Unverified users (shown on this page):", unverifiedUsers.length);
 
       setUsers(unverifiedUsers);
       setFilteredUsers(unverifiedUsers);
@@ -109,9 +126,7 @@ const ManualPage: React.FC = () => {
 
     if (!window.confirm(
       `Release bedspace for ${user.first_name || user.phone_number}?\n\n` +
-      `Hall: ${user.hall_name}\n` +
-      `Floor: ${user.floor}\n` +
-      `Bed: ${user.bed_number}\n\n` +
+      `Hall: ${user.hall_name}\nFloor: ${user.floor}\nBed: ${user.bed_number}\n\n` +
       `This will free up the bed for manual reallocation.`
     )) {
       return;
@@ -123,13 +138,10 @@ const ManualPage: React.FC = () => {
         method: 'DELETE',
       });
       
-      if (!response.ok) {
-        throw new Error(`Failed to release bed: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Failed to release bed: ${response.status}`);
       
       showToast(`✅ Bedspace released for ${user.first_name}!`, 'success');
       
-      // Update local state
       setUsers((prev) =>
         prev.map((u) =>
           u.phone_number === user.phone_number 
@@ -146,8 +158,100 @@ const ManualPage: React.FC = () => {
         )
       );
     } catch (err: any) {
-      console.error("Release error:", err);
       showToast(`❌ Failed to release bed: ${err.message}`, 'error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleReassignToNewUser = (user: UserData) => {
+    if (!user.hall_name || !user.floor || !user.bed_number) {
+      showToast("This user has no bed allocation to reassign.", 'error');
+      return;
+    }
+    setSelectedUser(user);
+    setReallocateMode('reassign');
+    setRegistrationStep('phone');
+    setNewUserPhone("");
+    setNewUserData({});
+  };
+
+  const handleRegisterPhoneNumber = async () => {
+    if (!newUserPhone || newUserPhone.length < 10) {
+      showToast("Please enter a valid phone number", 'error');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const response = await fetch(`${API_BASE}/register-number`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: newUserPhone }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Phone number registration failed');
+      }
+
+      showToast('✅ Phone number verified! Enter user details.', 'success');
+      setRegistrationStep('details');
+    } catch (err: any) {
+      showToast(`❌ ${err.message}`, 'error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCompleteReassignment = async () => {
+    if (!selectedUser || !newUserData.first_name || !newUserData.gender) {
+      showToast("Please fill in all required fields", 'error');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Register new user with old user's bed allocation
+      const registrationPayload = {
+        ...newUserData,
+        phone_number: newUserPhone,
+        hall_name: selectedUser.hall_name,
+        floor: selectedUser.floor,
+        bed_number: selectedUser.bed_number,
+      };
+
+      const response = await fetch(`${API_BASE}/register-user/${newUserPhone}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registrationPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'User registration failed');
+      }
+
+      // Delete old user's category to release the bed from them
+      if (selectedUser.category_id) {
+        await fetch(`${API_BASE}/category/${selectedUser.category_id}`, {
+          method: 'DELETE',
+        });
+      }
+
+      showToast(`✅ Bed reassigned to ${newUserData.first_name}!`, 'success');
+      
+      // Refresh users list
+      await fetchUsers(true);
+      
+      // Close modal
+      setSelectedUser(null);
+      setReallocateMode(null);
+      setNewUserPhone("");
+      setNewUserData({});
+      setRegistrationStep('phone');
+    } catch (err: any) {
+      showToast(`❌ ${err.message}`, 'error');
     } finally {
       setProcessing(false);
     }
@@ -186,7 +290,6 @@ const ManualPage: React.FC = () => {
 
       showToast(`✅ Bed allocated to ${selectedUser.first_name}!`, 'success');
 
-      // Update local state
       setUsers((prev) =>
         prev.map((u) =>
           u.phone_number === selectedUser.phone_number ? updateData : u
@@ -199,11 +302,9 @@ const ManualPage: React.FC = () => {
         )
       );
 
-      // Close modal
       setSelectedUser(null);
       setReallocateMode(null);
     } catch (err: any) {
-      console.error("Allocation error:", err);
       showToast(`❌ Failed to allocate bed: ${err.message}`, 'error');
     } finally {
       setProcessing(false);
@@ -256,7 +357,6 @@ const ManualPage: React.FC = () => {
 
   return (
     <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
@@ -273,7 +373,6 @@ const ManualPage: React.FC = () => {
       )}
 
       <section className="bg-white min-h-screen rounded-lg shadow-md p-2 lg:p-3">
-        {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
@@ -309,22 +408,20 @@ const ManualPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Info Banner */}
         <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-semibold text-blue-800 mb-1">Unverified Users Only</h4>
+              <h4 className="text-sm font-semibold text-blue-800 mb-1">Reallocation Workflow</h4>
               <p className="text-xs text-blue-700">
-                This page shows only users who have NOT been verified. Once verified, they will automatically be removed from this list. 
-                <strong> Release Bed:</strong> Free up bedspace from no-shows • 
-                <strong> Assign Bed:</strong> Manually allocate beds to walk-ins or reassign freed beds
+                <strong>🔗 Reassign to Walk-In:</strong> Register a new user and automatically transfer bed allocation • 
+                <strong>🗑️ Release Bed:</strong> Free up bedspace without immediate reassignment • 
+                <strong>✏️ Assign Bed:</strong> Manually update bed details for existing user
               </p>
             </div>
           </div>
         </div>
 
-        {/* Search */}
         <div className="mb-6">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -338,7 +435,6 @@ const ManualPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Users Table */}
         <div className="overflow-x-auto rounded-lg border-2 border-gray-200 shadow-sm">
           <table className="w-full">
             <thead>
@@ -412,14 +508,24 @@ const ManualPage: React.FC = () => {
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
                         {user.hall_name && user.bed_number ? (
-                          <button
-                            onClick={() => handleReleaseBed(user)}
-                            disabled={processing}
-                            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm disabled:opacity-50"
-                            title="Release Bed (No-Show)"
-                          >
-                            <UserX className="w-4 h-4" />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleReassignToNewUser(user)}
+                              disabled={processing}
+                              className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm disabled:opacity-50"
+                              title="Reassign to Walk-In"
+                            >
+                              <LinkIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleReleaseBed(user)}
+                              disabled={processing}
+                              className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm disabled:opacity-50"
+                              title="Release Bed Only"
+                            >
+                              <UserX className="w-4 h-4" />
+                            </button>
+                          </>
                         ) : null}
                         <button
                           onClick={() => handleAssignBed(user)}
@@ -448,6 +554,258 @@ const ManualPage: React.FC = () => {
           </table>
         </div>
 
+        {/* Reassignment Modal */}
+        {selectedUser && reallocateMode === 'reassign' && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold">Reassign Bed to Walk-In</h2>
+                    <p className="text-blue-100 text-sm mt-1">
+                      Transferring: {selectedUser.hall_name} | Floor {selectedUser.floor} | Bed {selectedUser.bed_number}
+                    </p>
+                    <p className="text-blue-100 text-xs mt-1">
+                      From: {selectedUser.first_name || selectedUser.phone_number}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { 
+                      setSelectedUser(null); 
+                      setReallocateMode(null);
+                      setNewUserPhone("");
+                      setNewUserData({});
+                      setRegistrationStep('phone');
+                    }}
+                    className="p-2 hover:bg-white/20 rounded-lg transition-all"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {/* Step 1: Phone Number */}
+                {registrationStep === 'phone' && (
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mb-4">
+                      <p className="text-sm text-blue-800">
+                        <strong>Step 1:</strong> Enter walk-in camper's phone number to start registration
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Phone Number *
+                      </label>
+                      <input
+                        type="tel"
+                        value={newUserPhone}
+                        onChange={(e) => setNewUserPhone(e.target.value)}
+                        className="w-full border-2 border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., +2348012345678"
+                      />
+                    </div>
+                    <button
+                      onClick={handleRegisterPhoneNumber}
+                      disabled={processing || !newUserPhone}
+                      className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium shadow-lg disabled:opacity-50"
+                    >
+                      {processing ? "Verifying..." : "Verify Phone Number →"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: User Details */}
+                {registrationStep === 'details' && (
+                  <div className="space-y-4">
+                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded mb-4">
+                      <p className="text-sm text-green-800">
+                        <strong>Step 2:</strong> Fill in camper details (Phone: {newUserPhone})
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          First Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserData.first_name || ""}
+                          onChange={(e) => setNewUserData({...newUserData, first_name: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="John"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Gender *
+                        </label>
+                        <select
+                          value={newUserData.gender || ""}
+                          onChange={(e) => setNewUserData({...newUserData, gender: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Category *
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserData.category || ""}
+                          onChange={(e) => setNewUserData({...newUserData, category: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="e.g., Adult, Youth"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Age Range
+                        </label>
+                        <select
+                          value={newUserData.age_range || ""}
+                          onChange={(e) => setNewUserData({...newUserData, age_range: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">Select Age Range</option>
+                          <option value="10-17">10-17</option>
+                          <option value="18-25">18-25</option>
+                          <option value="26-35">26-35</option>
+                          <option value="36-50">36-50</option>
+                          <option value="51+">51+</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Marital Status
+                        </label>
+                        <select
+                          value={newUserData.marital_status || ""}
+                          onChange={(e) => setNewUserData({...newUserData, marital_status: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">Select Status</option>
+                          <option value="Single">Single</option>
+                          <option value="Married">Married</option>
+                          <option value="Divorced">Divorced</option>
+                          <option value="Widowed">Widowed</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Country
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserData.country || ""}
+                          onChange={(e) => setNewUserData({...newUserData, country: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="Nigeria"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          State
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserData.state || ""}
+                          onChange={(e) => setNewUserData({...newUserData, state: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="Lagos"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Arrival Date *
+                        </label>
+                        <input
+                          type="date"
+                          value={newUserData.arrival_date || ""}
+                          onChange={(e) => setNewUserData({...newUserData, arrival_date: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Local Assembly
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserData.local_assembly || ""}
+                          onChange={(e) => setNewUserData({...newUserData, local_assembly: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="Your local assembly"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Medical Issues (Optional)
+                        </label>
+                        <textarea
+                          value={newUserData.medical_issues || ""}
+                          onChange={(e) => setNewUserData({...newUserData, medical_issues: e.target.value})}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          rows={2}
+                          placeholder="Any medical conditions..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg mt-4">
+                      <h4 className="font-semibold text-gray-800 mb-2">📍 Assigned Bed (Auto-filled)</h4>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Hall</p>
+                          <p className="font-semibold text-gray-800">{selectedUser.hall_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Floor</p>
+                          <p className="font-semibold text-gray-800">{selectedUser.floor}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Bed</p>
+                          <p className="font-semibold text-gray-800">{selectedUser.bed_number}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                      <button
+                        onClick={() => setRegistrationStep('phone')}
+                        className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-all font-medium"
+                      >
+                        ← Back
+                      </button>
+                      <button
+                        onClick={handleCompleteReassignment}
+                        disabled={processing || !newUserData.first_name || !newUserData.gender}
+                        className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg disabled:opacity-50"
+                      >
+                        {processing ? "Registering & Reassigning..." : "Complete Reassignment ✓"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Assignment Modal */}
         {selectedUser && reallocateMode === 'assign' && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
@@ -457,9 +815,6 @@ const ManualPage: React.FC = () => {
                   <div>
                     <h2 className="text-2xl font-bold">Assign Bedspace</h2>
                     <p className="text-green-100 text-sm mt-1">{selectedUser.first_name || selectedUser.phone_number}</p>
-                    <p className="text-green-100 text-xs mt-1">
-                      Status: <span className="font-semibold">Not Verified</span>
-                    </p>
                   </div>
                   <button 
                     onClick={() => { setSelectedUser(null); setReallocateMode(null); }}

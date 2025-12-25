@@ -58,16 +58,40 @@ const Portal: React.FC = () => {
     setUserData(null);
 
     try {
+      // Fetch user data
       const res = await fetch(
         `${BASE_URL}/user/${encodeURIComponent(cleanedPhone)}`
       );
 
       if (res.ok) {
         const data: UserData = await res.json();
+        
+        // Check if user is verified by fetching active users
+        try {
+          const activeUsersRes = await fetch(`${BASE_URL}/active-users`);
+          if (activeUsersRes.ok) {
+            const activeUsers = await activeUsersRes.json();
+            const isVerified = activeUsers.some(
+              (u: any) => u.phone_number === cleanedPhone
+            );
+            
+            // Update user data with verification status
+            data.is_active = isVerified;
+          }
+        } catch (err) {
+          console.error("Error checking verification status:", err);
+          // If we can't check, default to false
+          data.is_active = false;
+        }
+
         setUserData(data);
 
         if (data?.hall_name) {
-          showToast("✅ User registration found!", 'success');
+          if (data.is_active) {
+            showToast("✅ User is registered and verified!", 'success');
+          } else {
+            showToast("✅ User registered but not yet verified", 'success');
+          }
         } else {
           showToast("⚠️ Registration incomplete - no bed allocation yet", 'error');
         }
@@ -201,7 +225,7 @@ const Portal: React.FC = () => {
         {/* User Details Card */}
         {userData && (
           <div className="mt-3 sm:mt-8 bg-white rounded-2xl shadow-xl p-6 text-left space-y-4">
-            {/* ← CORRECTED: Reliable fallback + click to view full photo */}
+            {/* Profile Picture */}
             <div className="flex justify-center mb-5">
               {userData.profile_picture_url ? (
                 <button
@@ -213,7 +237,7 @@ const Portal: React.FC = () => {
                     alt={userData.first_name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/images/campBg.jpg"; // Your fallback image
+                      (e.target as HTMLImageElement).src = "/images/campBg.jpg";
                       (e.target as HTMLImageElement).onerror = null;
                     }}
                   />
