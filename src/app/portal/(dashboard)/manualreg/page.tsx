@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, UserX, UserPlus, Bed, Home, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon } from "lucide-react";
+import { Search, UserX, UserPlus, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -130,7 +130,24 @@ const ManualPage: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/category`);
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map((c: any) => ({
+          value: c.category_name,
+          label: c.category_name,
+        }));
+        setCategories(formatted);
+      }
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+    }
+  };
 
   useEffect(() => {
     const results = users.filter((u) =>
@@ -196,8 +213,59 @@ const ManualPage: React.FC = () => {
     setReallocateMode('reassign');
     setRegistrationStep('phone');
     setNewUserPhone("");
-    setNewUserData({});
+    // Pre-fill category from old user
+    setNewUserData({ category: user.category || "" });
   };
+
+  const handleNewUserFieldChange = (field: string, value: string) => {
+    let updatedData = { ...newUserData, [field]: value };
+
+    // Auto-fill gender and marital status based on category
+    if (field === "category") {
+      const categoryMap: Record<string, { gender: string; marital: string }> = {
+        "Young Brothers": { gender: "Male", marital: "Single" },
+        "Married (male)": { gender: "Male", marital: "Married" },
+        "Teens Below 18 (male)": { gender: "Male", marital: "Single" },
+        "Young Sisters": { gender: "Female", marital: "Single" },
+        "Married (female)": { gender: "Female", marital: "Married" },
+        "Teens Below 18 (female)": { gender: "Female", marital: "Single" },
+        "Nursing Mothers": { gender: "Female", marital: "Married" },
+      };
+      
+      if (categoryMap[value]) {
+        updatedData.gender = categoryMap[value].gender;
+        updatedData.marital_status = categoryMap[value].marital;
+      }
+    }
+
+    // Auto-suggest category based on gender and marital status
+    if (field === "gender" || field === "marital_status") {
+      const gender = field === "gender" ? value : updatedData.gender;
+      const marital = field === "marital_status" ? value : updatedData.marital_status;
+      
+      if (gender && marital) {
+        const categoryMap: Record<string, string> = {
+          "Male-Single": "Young Brothers",
+          "Male-Married": "Married (male)",
+          "Female-Single": "Young Sisters",
+          "Female-Married": "Married (female)",
+        };
+        
+        const suggestedCategory = categoryMap[`${gender}-${marital}`];
+        if (suggestedCategory) {
+          updatedData.category = suggestedCategory;
+        }
+      }
+    }
+
+    setNewUserData(updatedData);
+  };
+
+  // Check if children fields should be shown
+  const showChildrenFields = 
+    newUserData.category === "Married (male)" 
+      ? false 
+      : newUserData.marital_status === "Married";
 
   const handleRegisterPhoneNumber = async () => {
     if (!newUserPhone || newUserPhone.length < 10) {
@@ -215,11 +283,18 @@ const ManualPage: React.FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 400 || errorData.detail?.includes('already') || errorData.detail?.includes('exists')) {
+          showToast('⚠️ This phone number has been registered before. Please use a different number.', 'error');
+          setProcessing(false);
+          return;
+        }
         throw new Error(errorData.detail || 'Phone number registration failed');
       }
 
-      showToast('✅ Phone number verified! Enter user details.', 'success');
-      setRegistrationStep('details');
+      showToast('✅ Phone number registered successfully!', 'success');
+      setTimeout(() => {
+        setRegistrationStep('details');
+      }, 1000); // Small delay so user can see the success toast
     } catch (err: any) {
       showToast(`❌ ${err.message}`, 'error');
     } finally {
@@ -228,38 +303,43 @@ const ManualPage: React.FC = () => {
   };
 
   const handleCompleteReassignment = async () => {
-    if (!selectedUser || !newUserData.first_name || !newUserData.gender) {
-      showToast("Please fill in all required fields", 'error');
+    const requiredFields = ['first_name', 'category', 'age_range', 'country', 'state', 'arrival_date', 'local_assembly', 'local_assembly_address'];
+    const missingFields = requiredFields.filter(field => !newUserData[field as keyof NewUserRegistration]);
+    
+    if (missingFields.length > 0) {
+      showToast(`Please fill in: ${missingFields.join(', ')}`, 'error');
       return;
     }
 
     setProcessing(true);
     try {
       // Register new user with old user's bed allocation
-      const registrationPayload = {
-        ...newUserData,
-        phone_number: newUserPhone,
-        hall_name: selectedUser.hall_name,
-        floor: selectedUser.floor,
-        bed_number: selectedUser.bed_number,
-      };
+      if (selectedUser) {
+        const registrationPayload = {
+          ...newUserData,
+          phone_number: newUserPhone,
+          hall_name: selectedUser.hall_name,
+          floor: selectedUser.floor,
+          bed_number: selectedUser.bed_number,
+        };
 
-      const response = await fetch(`${API_BASE}/register-user/${newUserPhone}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registrationPayload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'User registration failed');
-      }
-
-      // Delete old user's category to release the bed from them
-      if (selectedUser.category_id) {
-        await fetch(`${API_BASE}/category/${selectedUser.category_id}`, {
-          method: 'DELETE',
+        const response = await fetch(`${API_BASE}/register-user/${newUserPhone}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(registrationPayload),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'User registration failed');
+        }
+
+        // Delete old user's category to release the bed from them
+        if (selectedUser.category_id) {
+          await fetch(`${API_BASE}/category/${selectedUser.category_id}`, {
+            method: 'DELETE',
+          });
+        }
       }
 
       showToast(`✅ Bed reassigned to ${newUserData.first_name}!`, 'success');
@@ -362,7 +442,6 @@ const ManualPage: React.FC = () => {
   };
 
   const allocatedUsers = users.filter(u => u.hall_name && u.bed_number);
-  const unallocatedUsers = users.filter(u => !u.hall_name || !u.bed_number);
   const overdueUsers = users.filter(u => isArrivalDatePassed(u.arrival_date));
 
   if (loading) {
@@ -379,7 +458,7 @@ const ManualPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
+    <div className="bg-gradient-to-b font-[lexend] from-green-50 via-white to-green-100 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
@@ -579,17 +658,21 @@ const ManualPage: React.FC = () => {
 
         {/* Reassignment Modal */}
         {selectedUser && reallocateMode === 'reassign' && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl">
+          <div 
+            className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto bg-cover bg-center"
+            style={{ backgroundImage: `url('/images/campBg.jpg')` }}
+          >
+            <div className="absolute inset-0 bg-green-600/40"></div>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8 z-10">
+              <div className="bg-linear-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl">
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-bold">Reassign Bed to Walk-In</h2>
                     <p className="text-blue-100 text-sm mt-1">
-                      Transferring: {selectedUser.hall_name} | Floor {selectedUser.floor} | Bed {selectedUser.bed_number}
+                      Transferring: {selectedUser?.hall_name} | Floor {selectedUser?.floor} | Bed {selectedUser?.bed_number}
                     </p>
                     <p className="text-blue-100 text-xs mt-1">
-                      From: {selectedUser.first_name || selectedUser.phone_number}
+                      From: {selectedUser?.first_name || selectedUser?.phone_number}
                     </p>
                   </div>
                   <button 
@@ -620,14 +703,14 @@ const ManualPage: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Phone Number *
                       </label>
-                      <input
-                        type="tel"
-                        value={newUserPhone}
-                        onChange={(e) => setNewUserPhone(e.target.value)}
-                        className="w-full border-2 border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="e.g., +2348012345678"
-                      />
-                    </div>
+                  <input
+                    type="tel"
+                    value={newUserPhone}
+                    onChange={(e) => setNewUserPhone(e.target.value)}
+                    className="w-full border-2 border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., 09055992017, +2348012345678"
+                  />
+                </div>
                     <button
                       onClick={handleRegisterPhoneNumber}
                       disabled={processing || !newUserPhone}
@@ -640,34 +723,77 @@ const ManualPage: React.FC = () => {
 
                 {/* Step 2: User Details */}
                 {registrationStep === 'details' && (
-                  <div className="space-y-4">
-                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded mb-4">
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded mb-4 sticky top-0 z-10">
                       <p className="text-sm text-green-800">
                         <strong>Step 2:</strong> Fill in camper details (Phone: {newUserPhone})
                       </p>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Category - Can be changed */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          First Name *
+                          Category * 
+                          <span className="text-xs text-gray-500 ml-2">(Auto-suggested)</span>
+                        </label>
+                        <select
+                          value={newUserData.category || ""}
+                          onChange={(e) => handleNewUserFieldChange("category", e.target.value)}
+                          className="w-full border-2 border-green-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 bg-green-50"
+                        >
+                          <option value="">Select Category</option>
+                          {categories.map(cat => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Full Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Full Name *
                         </label>
                         <input
                           type="text"
                           value={newUserData.first_name || ""}
-                          onChange={(e) => setNewUserData({...newUserData, first_name: e.target.value})}
+                          onChange={(e) => handleNewUserFieldChange("first_name", e.target.value)}
                           className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="John"
+                          placeholder="John Doe"
                         />
                       </div>
 
+                      {/* Age Range */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Gender *
+                          Age Range *
+                        </label>
+                        <select
+                          value={newUserData.age_range || ""}
+                          onChange={(e) => handleNewUserFieldChange("age_range", e.target.value)}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">Select Age Range</option>
+                          <option value="10-17">10-17</option>
+                          <option value="18-25">18-25</option>
+                          <option value="26-35">26-35</option>
+                          <option value="36-45">36-45</option>
+                          <option value="46-55">46-55</option>
+                          <option value="56-65">56-65</option>
+                          <option value="66-70">66-70</option>
+                          <option value="71+">71+</option>
+                        </select>
+                      </div>
+
+                      {/* Gender (Can be manually selected, auto-fills category) */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Gender * 
+                          <span className="text-xs text-gray-500 ml-2">(Auto-fills category)</span>
                         </label>
                         <select
                           value={newUserData.gender || ""}
-                          onChange={(e) => setNewUserData({...newUserData, gender: e.target.value})}
+                          onChange={(e) => handleNewUserFieldChange("gender", e.target.value)}
                           className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
                         >
                           <option value="">Select Gender</option>
@@ -676,80 +802,103 @@ const ManualPage: React.FC = () => {
                         </select>
                       </div>
 
+                      {/* Marital Status (Can be manually selected, auto-fills category) */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Category *
-                        </label>
-                        <input
-                          type="text"
-                          value={newUserData.category || ""}
-                          onChange={(e) => setNewUserData({...newUserData, category: e.target.value})}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="e.g., Adult, Youth"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Age Range
-                        </label>
-                        <select
-                          value={newUserData.age_range || ""}
-                          onChange={(e) => setNewUserData({...newUserData, age_range: e.target.value})}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                        >
-                          <option value="">Select Age Range</option>
-                          <option value="10-17">10-17</option>
-                          <option value="18-25">18-25</option>
-                          <option value="26-35">26-35</option>
-                          <option value="36-50">36-50</option>
-                          <option value="51+">51+</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Marital Status
+                          Marital Status * 
+                          <span className="text-xs text-gray-500 ml-2">(Auto-fills category)</span>
                         </label>
                         <select
                           value={newUserData.marital_status || ""}
-                          onChange={(e) => setNewUserData({...newUserData, marital_status: e.target.value})}
+                          onChange={(e) => handleNewUserFieldChange("marital_status", e.target.value)}
                           className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
                         >
                           <option value="">Select Status</option>
                           <option value="Single">Single</option>
                           <option value="Married">Married</option>
-                          <option value="Divorced">Divorced</option>
                           <option value="Widowed">Widowed</option>
+                          <option value="Divorced">Divorced</option>
                         </select>
                       </div>
 
+                      {/* Children Fields - Only if married (and not "Married (male)") */}
+                      {showChildrenFields && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Number of Children (age 0-10)
+                            </label>
+                            <input
+                              type="number"
+                              value={newUserData.no_children || ""}
+                              onChange={(e) => handleNewUserFieldChange("no_children", e.target.value)}
+                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                              placeholder="e.g., 2"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Names of Children (age 0-10)
+                            </label>
+                            <input
+                              type="text"
+                              value={newUserData.names_children || ""}
+                              onChange={(e) => handleNewUserFieldChange("names_children", e.target.value)}
+                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                              placeholder="e.g., John, Mary"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Country */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Country
+                          Country *
                         </label>
-                        <input
-                          type="text"
+                        <select
                           value={newUserData.country || ""}
-                          onChange={(e) => setNewUserData({...newUserData, country: e.target.value})}
+                          onChange={(e) => handleNewUserFieldChange("country", e.target.value)}
                           className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="Nigeria"
-                        />
+                        >
+                          <option value="">Select Country</option>
+                          {countriesList.map(c => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                          ))}
+                        </select>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          State
-                        </label>
-                        <input
-                          type="text"
-                          value={newUserData.state || ""}
-                          onChange={(e) => setNewUserData({...newUserData, state: e.target.value})}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="Lagos"
-                        />
-                      </div>
+                      {/* State */}
+                      {newUserData.country && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            State / Province *
+                          </label>
+                          {countryStates[newUserData.country] ? (
+                            <select
+                              value={newUserData.state || ""}
+                              onChange={(e) => handleNewUserFieldChange("state", e.target.value)}
+                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                            >
+                              <option value="">Select State</option>
+                              {countryStates[newUserData.country].map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={newUserData.state || ""}
+                              onChange={(e) => handleNewUserFieldChange("state", e.target.value)}
+                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                              placeholder="Enter your state"
+                            />
+                          )}
+                        </div>
+                      )}
 
+                      {/* Arrival Date */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Arrival Date *
@@ -757,52 +906,71 @@ const ManualPage: React.FC = () => {
                         <input
                           type="date"
                           value={newUserData.arrival_date || ""}
-                          onChange={(e) => setNewUserData({...newUserData, arrival_date: e.target.value})}
+                          onChange={(e) => handleNewUserFieldChange("arrival_date", e.target.value)}
                           className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          min="2026-03-01"
+                          max="2026-04-30"
                         />
                       </div>
 
+                      {/* Medical Issues */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Disability / Allergy
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserData.medical_issues || ""}
+                          onChange={(e) => handleNewUserFieldChange("medical_issues", e.target.value)}
+                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                          placeholder="Optional"
+                        />
+                      </div>
+
+                      {/* Local Assembly */}
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Local Assembly
+                          Local Assembly *
                         </label>
                         <input
                           type="text"
                           value={newUserData.local_assembly || ""}
-                          onChange={(e) => setNewUserData({...newUserData, local_assembly: e.target.value})}
+                          onChange={(e) => handleNewUserFieldChange("local_assembly", e.target.value)}
                           className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
                           placeholder="Your local assembly"
                         />
                       </div>
 
+                      {/* Assembly Address */}
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Medical Issues (Optional)
+                          Assembly Address *
                         </label>
-                        <textarea
-                          value={newUserData.medical_issues || ""}
-                          onChange={(e) => setNewUserData({...newUserData, medical_issues: e.target.value})}
+                        <input
+                          type="text"
+                          value={newUserData.local_assembly_address || ""}
+                          onChange={(e) => handleNewUserFieldChange("local_assembly_address", e.target.value)}
                           className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          rows={2}
-                          placeholder="Any medical conditions..."
+                          placeholder="Assembly address"
                         />
                       </div>
                     </div>
+
 
                     <div className="bg-gray-50 p-4 rounded-lg mt-4">
                       <h4 className="font-semibold text-gray-800 mb-2">📍 Assigned Bed (Auto-filled)</h4>
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-gray-500">Hall</p>
-                          <p className="font-semibold text-gray-800">{selectedUser.hall_name}</p>
+                          <p className="font-semibold text-gray-800">{selectedUser?.hall_name}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Floor</p>
-                          <p className="font-semibold text-gray-800">{selectedUser.floor}</p>
+                          <p className="font-semibold text-gray-800">{selectedUser?.floor}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Bed</p>
-                          <p className="font-semibold text-gray-800">{selectedUser.bed_number}</p>
+                          <p className="font-semibold text-gray-800">{selectedUser?.bed_number}</p>
                         </div>
                       </div>
                     </div>
@@ -816,7 +984,7 @@ const ManualPage: React.FC = () => {
                       </button>
                       <button
                         onClick={handleCompleteReassignment}
-                        disabled={processing || !newUserData.first_name || !newUserData.gender}
+                        disabled={processing || !newUserData.first_name || !newUserData.category || !newUserData.arrival_date}
                         className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg disabled:opacity-50"
                       >
                         {processing ? "Registering & Reassigning..." : "Complete Reassignment ✓"}
@@ -831,13 +999,17 @@ const ManualPage: React.FC = () => {
 
         {/* Assignment Modal */}
         {selectedUser && reallocateMode === 'assign' && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
+          <div 
+            className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-cover bg-center"
+            style={{ backgroundImage: `url('/images/campBg.jpg')` }}
+          >
+            <div className="absolute inset-0 bg-green-600/40"></div>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg z-10">
+              <div className="bg-linear-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-bold">Assign Bedspace</h2>
-                    <p className="text-green-100 text-sm mt-1">{selectedUser.first_name || selectedUser.phone_number}</p>
+                    <p className="text-green-100 text-sm mt-1">{selectedUser?.first_name || selectedUser?.phone_number}</p>
                   </div>
                   <button 
                     onClick={() => { setSelectedUser(null); setReallocateMode(null); }}
