@@ -55,6 +55,29 @@ const ManualPage: React.FC = () => {
   // New user registration data
   const [newUserPhone, setNewUserPhone] = useState<string>("");
   const [newUserData, setNewUserData] = useState<Partial<NewUserRegistration>>({});
+  const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
+
+  const countriesList = [
+    { value: "Nigeria", label: "Nigeria" },
+    { value: "Ghana", label: "Ghana" },
+    { value: "USA", label: "United States" },
+    { value: "UK", label: "United Kingdom" },
+    { value: "Canada", label: "Canada" },
+  ];
+
+  const countryStates: Record<string, string[]> = {
+    Nigeria: [
+      "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
+      "Cross River","Delta","Ebonyi","Edo","Ekiti","Enugu","FCT","Gombe","Imo",
+      "Jigawa","Kaduna","Kano","Katsina","Kebbi","Kogi","Kwara","Lagos","Nasarawa",
+      "Niger","Ogun","Ondo","Osun","Oyo","Plateau","Rivers","Sokoto","Taraba",
+      "Yobe","Zamfara"
+    ],
+    USA: ["California","Texas","New York","Florida"],
+    Canada: ["Ontario","Quebec","British Columbia","Alberta"],
+    Ghana: ["Greater Accra","Ashanti","Central","Eastern"],
+    UK: ["England","Scotland","Wales","Northern Ireland"],
+  };
   const [registrationStep, setRegistrationStep] = useState<'phone' | 'details' | 'confirm'>('phone');
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
