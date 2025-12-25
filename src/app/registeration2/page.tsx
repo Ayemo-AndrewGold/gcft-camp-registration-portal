@@ -327,27 +327,32 @@ function Register2Content() {
     if (id === "category") {
       let autoGender = "";
       let autoMaritalStatus = "";
+      let autoAgeRange = "";
       
-      const categoryMap: Record<string, { gender: string; marital: string }> = {
+      const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string }> = {
         "Young Brothers": { gender: "Male", marital: "Single" },
         "Married (male)": { gender: "Male", marital: "Married" },
-        "Teens Below 18 (male)": { gender: "Male", marital: "Single" },
+        "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17" },
         "Young Sisters": { gender: "Female", marital: "Single" },
         "Married (female)": { gender: "Female", marital: "Married" },
-        "Teens Below 18 (female)": { gender: "Female", marital: "Single" },
-        "Nursing Mothers": { gender: "Female", marital: "Married" },
+        "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17" },
+        "Nursing Mothers": { gender: "Female", marital: "" },
+        "Elder Sisters (56 & Above)": { gender: "Female", marital: "Married" },
+        "Elder Brothers (56 & Above)": { gender: "Male", marital: "Married" },
       };
       
       if (categoryMap[value]) {
         autoGender = categoryMap[value].gender;
         autoMaritalStatus = categoryMap[value].marital;
+        autoAgeRange = categoryMap[value].ageRange || "";
       }
       
       setFormData({ 
         ...formData, 
         [id]: value, 
         gender: autoGender,
-        marital_status: autoMaritalStatus 
+        marital_status: autoMaritalStatus,
+        age_range: autoAgeRange
       });
       return;
     }
@@ -370,7 +375,7 @@ function Register2Content() {
   };
 
   // Hide children fields for "Married (male)" category, otherwise show only if Married
-  const showChildrenFields = formData.category === "Married (male)" ? false : formData.marital_status === "Married";
+ const showChildrenFields = formData.category === "Nursing Mothers";
 
   const fields: FieldType[] = [
     { id: "category", label: "Category", required: true, options: categories },
@@ -384,7 +389,7 @@ function Register2Content() {
         { value: "18-25", label: "18-25" },
         { value: "26-35", label: "26-35" },
         { value: "36-45", label: "36-45" },
-        { value: "45-55", label: "45-55" },
+        { value: "46-55", label: "46-55" },
         { value: "56-65", label: "56-65" },
         { value: "66-70", label: "66-70" },
         { value: "71+", label: "71+" },

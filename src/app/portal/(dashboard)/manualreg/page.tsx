@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, UserX, UserPlus, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon } from "lucide-react";
+import { Search, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon, Upload } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -25,12 +25,12 @@ interface NewUserRegistration {
   category: string;
   age_range: string;
   marital_status: string;
-  no_children: number;
-  names_children: string;
+  no_children?: number;
+  names_children?: string;
   country: string;
   state: string;
   arrival_date: string;
-  medical_issues: string;
+  medical_issues?: string;
   local_assembly: string;
   local_assembly_address: string;
   gender: string;
@@ -47,15 +47,12 @@ const ManualPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // New allocation data
-  const [newHall, setNewHall] = useState<string>("");
-  const [newFloor, setNewFloor] = useState<string>("");
-  const [newBed, setNewBed] = useState<string>("");
-
-  // New user registration data
   const [newUserPhone, setNewUserPhone] = useState<string>("");
   const [newUserData, setNewUserData] = useState<Partial<NewUserRegistration>>({});
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
+  
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
 
   const countriesList = [
     { value: "Nigeria", label: "Nigeria" },
@@ -78,6 +75,7 @@ const ManualPage: React.FC = () => {
     Ghana: ["Greater Accra","Ashanti","Central","Eastern"],
     UK: ["England","Scotland","Wales","Northern Ireland"],
   };
+
   const [registrationStep, setRegistrationStep] = useState<'phone' | 'details' | 'confirm'>('phone');
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -158,52 +156,6 @@ const ManualPage: React.FC = () => {
     setFilteredUsers(results);
   }, [searchTerm, users]);
 
-  const handleReleaseBed = async (user: UserData) => {
-    if (!user.category_id) {
-      showToast("This user has no allocation to release.", 'error');
-      return;
-    }
-
-    if (!window.confirm(
-      `Release bedspace for ${user.first_name || user.phone_number}?\n\n` +
-      `Hall: ${user.hall_name}\nFloor: ${user.floor}\nBed: ${user.bed_number}\n\n` +
-      `This will free up the bed for manual reallocation.`
-    )) {
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      const response = await fetch(`${API_BASE}/category/${user.category_id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) throw new Error(`Failed to release bed: ${response.status}`);
-      
-      showToast(`✅ Bedspace released for ${user.first_name}!`, 'success');
-      
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === user.phone_number 
-            ? { ...u, hall_name: undefined, floor: undefined, bed_number: undefined, category_id: null }
-            : u
-        )
-      );
-      
-      setFilteredUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === user.phone_number 
-            ? { ...u, hall_name: undefined, floor: undefined, bed_number: undefined, category_id: null }
-            : u
-        )
-      );
-    } catch (err: any) {
-      showToast(`❌ Failed to release bed: ${err.message}`, 'error');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const handleReassignToNewUser = (user: UserData) => {
     if (!user.hall_name || !user.floor || !user.bed_number) {
       showToast("This user has no bed allocation to reassign.", 'error');
@@ -213,59 +165,61 @@ const ManualPage: React.FC = () => {
     setReallocateMode('reassign');
     setRegistrationStep('phone');
     setNewUserPhone("");
-    // Pre-fill category from old user
+    setProfilePicture(null);
+    setPreviewUrl("");
     setNewUserData({ category: user.category || "" });
   };
 
   const handleNewUserFieldChange = (field: string, value: string) => {
     let updatedData = { ...newUserData, [field]: value };
 
-    // Auto-fill gender and marital status based on category
     if (field === "category") {
-      const categoryMap: Record<string, { gender: string; marital: string }> = {
+      let autoGender = "";
+      let autoMaritalStatus = "";
+      let autoAgeRange = "";
+
+      const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string }> = {
         "Young Brothers": { gender: "Male", marital: "Single" },
         "Married (male)": { gender: "Male", marital: "Married" },
-        "Teens Below 18 (male)": { gender: "Male", marital: "Single" },
+        "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17" },
         "Young Sisters": { gender: "Female", marital: "Single" },
         "Married (female)": { gender: "Female", marital: "Married" },
-        "Teens Below 18 (female)": { gender: "Female", marital: "Single" },
-        "Nursing Mothers": { gender: "Female", marital: "Married" },
+        "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17" },
+        "Nursing Mothers": { gender: "Female", marital: "" },
+        "Elder Sisters (56 & Above)": { gender: "Female", marital: "Married" },
+        "Elder Brothers (56 & Above)": { gender: "Male", marital: "Married" },
       };
       
       if (categoryMap[value]) {
-        updatedData.gender = categoryMap[value].gender;
-        updatedData.marital_status = categoryMap[value].marital;
+        autoGender = categoryMap[value].gender;
+        autoMaritalStatus = categoryMap[value].marital;
+        autoAgeRange = categoryMap[value].ageRange || "";
       }
-    }
-
-    // Auto-suggest category based on gender and marital status
-    if (field === "gender" || field === "marital_status") {
-      const gender = field === "gender" ? value : updatedData.gender;
-      const marital = field === "marital_status" ? value : updatedData.marital_status;
       
-      if (gender && marital) {
-        const categoryMap: Record<string, string> = {
-          "Male-Single": "Young Brothers",
-          "Male-Married": "Married (male)",
-          "Female-Single": "Young Sisters",
-          "Female-Married": "Married (female)",
-        };
-        
-        const suggestedCategory = categoryMap[`${gender}-${marital}`];
-        if (suggestedCategory) {
-          updatedData.category = suggestedCategory;
-        }
-      }
+      updatedData = { 
+        ...updatedData, 
+        gender: autoGender,
+        marital_status: autoMaritalStatus,
+        age_range: autoAgeRange
+      };
     }
 
     setNewUserData(updatedData);
   };
 
-  // Check if children fields should be shown
-  const showChildrenFields = 
-    newUserData.category === "Married (male)" 
-      ? false 
-      : newUserData.marital_status === "Married";
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('File size must be less than 5MB', 'error');
+        return;
+      }
+      setProfilePicture(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const showChildrenFields = newUserData.category === "Nursing Mothers";
 
   const handleRegisterPhoneNumber = async () => {
     if (!newUserPhone || newUserPhone.length < 10) {
@@ -294,7 +248,7 @@ const ManualPage: React.FC = () => {
       showToast('✅ Phone number registered successfully!', 'success');
       setTimeout(() => {
         setRegistrationStep('details');
-      }, 1000); // Small delay so user can see the success toast
+      }, 1000);
     } catch (err: any) {
       showToast(`❌ ${err.message}`, 'error');
     } finally {
@@ -311,104 +265,74 @@ const ManualPage: React.FC = () => {
       return;
     }
 
+    if (!profilePicture) {
+      showToast('Please upload a profile picture', 'error');
+      return;
+    }
+
+    if (!newUserData.marital_status) {
+      showToast('Please select marital status', 'error');
+      return;
+    }
+
     setProcessing(true);
     try {
-      // Register new user with old user's bed allocation
       if (selectedUser) {
-        const registrationPayload = {
-          ...newUserData,
-          phone_number: newUserPhone,
-          hall_name: selectedUser.hall_name,
-          floor: selectedUser.floor,
-          bed_number: selectedUser.bed_number,
-        };
+        const formData = new FormData();
+        
+        formData.append('file', profilePicture);
+        formData.append('category', newUserData.category || '');
+        formData.append('first_name', newUserData.first_name || '');
+        formData.append('age_range', newUserData.age_range || '');
+        formData.append('marital_status', newUserData.marital_status || '');
+        formData.append('country', newUserData.country || '');
+        formData.append('state', newUserData.state || '');
+        formData.append('arrival_date', newUserData.arrival_date || '');
+        formData.append('local_assembly', newUserData.local_assembly || '');
+        formData.append('local_assembly_address', newUserData.local_assembly_address || '');
+        
+        if (newUserData.no_children) {
+          formData.append('no_children', String(newUserData.no_children));
+        }
+        if (newUserData.names_children) {
+          formData.append('names_children', newUserData.names_children);
+        }
+        if (newUserData.medical_issues) {
+          formData.append('medical_issues', newUserData.medical_issues);
+        }
 
-        const response = await fetch(`${API_BASE}/register-user/${newUserPhone}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(registrationPayload),
-        });
+        const response = await fetch(
+          `${API_BASE}/register-user-manual/${newUserPhone}?number_late_comer=${selectedUser.phone_number}`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
 
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.detail || 'User registration failed');
         }
 
-        // Delete old user's category to release the bed from them
-        if (selectedUser.category_id) {
-          await fetch(`${API_BASE}/category/${selectedUser.category_id}`, {
-            method: 'DELETE',
-          });
-        }
+        const result = await response.json();
+        
+        showToast(
+          `✅ Bed reassigned to ${newUserData.first_name}! Hall: ${result.hall_name}, Floor: ${result.floor}, Bed: ${result.bed_number}`,
+          'success'
+        );
+        
+        await fetchUsers(true);
+        
+        setSelectedUser(null);
+        setReallocateMode(null);
+        setNewUserPhone("");
+        setNewUserData({});
+        setRegistrationStep('phone');
+        setProfilePicture(null);
+        setPreviewUrl("");
       }
-
-      showToast(`✅ Bed reassigned to ${newUserData.first_name}!`, 'success');
-      
-      // Refresh users list
-      await fetchUsers(true);
-      
-      // Close modal
-      setSelectedUser(null);
-      setReallocateMode(null);
-      setNewUserPhone("");
-      setNewUserData({});
-      setRegistrationStep('phone');
     } catch (err: any) {
       showToast(`❌ ${err.message}`, 'error');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleAssignBed = (user: UserData) => {
-    setSelectedUser(user);
-    setReallocateMode('assign');
-    setNewHall(user.hall_name || "");
-    setNewFloor(user.floor?.toString() || "");
-    setNewBed(user.bed_number?.toString() || "");
-  };
-
-  const handleSaveAllocation = async () => {
-    if (!selectedUser || !newHall || !newFloor || !newBed) {
-      showToast("Please fill in all fields (Hall, Floor, Bed)", 'error');
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      const updateData = {
-        ...selectedUser,
-        hall_name: newHall,
-        floor: newFloor,
-        bed_number: newBed,
-      };
-
-      const res = await fetch(`${API_BASE}/user/${selectedUser.phone_number}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-      showToast(`✅ Bed allocated to ${selectedUser.first_name}!`, 'success');
-
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === selectedUser.phone_number ? updateData : u
-        )
-      );
-      
-      setFilteredUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === selectedUser.phone_number ? updateData : u
-        )
-      );
-
-      setSelectedUser(null);
-      setReallocateMode(null);
-    } catch (err: any) {
-      showToast(`❌ Failed to allocate bed: ${err.message}`, 'error');
     } finally {
       setProcessing(false);
     }
@@ -446,7 +370,7 @@ const ManualPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+      <div className="bg-gradient-to-t from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
         <section className="bg-white min-h-screen rounded-lg shadow-md p-5 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -458,7 +382,7 @@ const ManualPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-b font-[lexend] from-green-50 via-white to-green-100 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
+    <div className="bg-gradient-to-b from-green-50 via-white to-green-100 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
@@ -516,9 +440,7 @@ const ManualPage: React.FC = () => {
             <div>
               <h4 className="text-sm font-semibold text-blue-800 mb-1">Reallocation Workflow</h4>
               <p className="text-xs text-blue-700">
-                <strong>🔗 Reassign to Walk-In:</strong> Register a new user and automatically transfer bed allocation • 
-                <strong>🗑️ Release Bed:</strong> Free up bedspace without immediate reassignment • 
-                <strong>✏️ Assign Bed:</strong> Manually update bed details for existing user
+                <strong>🔗 Reassign to Walk-In:</strong> Register a new user and automatically transfer bed allocation
               </p>
             </div>
           </div>
@@ -610,33 +532,15 @@ const ManualPage: React.FC = () => {
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
                         {user.hall_name && user.bed_number ? (
-                          <>
-                            <button
-                              onClick={() => handleReassignToNewUser(user)}
-                              disabled={processing}
-                              className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm disabled:opacity-50"
-                              title="Reassign to Walk-In"
-                            >
-                              <LinkIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleReleaseBed(user)}
-                              disabled={processing}
-                              className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm disabled:opacity-50"
-                              title="Release Bed Only"
-                            >
-                              <UserX className="w-4 h-4" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleReassignToNewUser(user)}
+                            disabled={processing}
+                            className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm disabled:opacity-50"
+                            title="Reassign to Walk-In"
+                          >
+                            <LinkIcon className="w-4 h-4" />
+                          </button>
                         ) : null}
-                        <button
-                          onClick={() => handleAssignBed(user)}
-                          disabled={processing}
-                          className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm disabled:opacity-50"
-                          title="Assign/Update Bed"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -659,12 +563,10 @@ const ManualPage: React.FC = () => {
         {/* Reassignment Modal */}
         {selectedUser && reallocateMode === 'reassign' && (
           <div 
-            className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto bg-cover bg-center"
-            style={{ backgroundImage: `url('/images/campBg.jpg')` }}
+            className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto bg-black/50"
           >
-            <div className="absolute inset-0 bg-green-600/40"></div>
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8 z-10">
-              <div className="bg-linear-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl">
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8 max-h-[90vh] overflow-y-auto">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl sticky top-0 z-10">
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-bold">Reassign Bed to Walk-In</h2>
@@ -682,6 +584,8 @@ const ManualPage: React.FC = () => {
                       setNewUserPhone("");
                       setNewUserData({});
                       setRegistrationStep('phone');
+                      setProfilePicture(null);
+                      setPreviewUrl("");
                     }}
                     className="p-2 hover:bg-white/20 rounded-lg transition-all"
                   >
@@ -700,17 +604,17 @@ const ManualPage: React.FC = () => {
                       </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Phone Number *
                       </label>
-                  <input
-                    type="tel"
-                    value={newUserPhone}
-                    onChange={(e) => setNewUserPhone(e.target.value)}
-                    className="w-full border-2 border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., 09055992017, +2348012345678"
-                  />
-                </div>
+                      <input
+                        type="tel"
+                        value={newUserPhone}
+                        onChange={(e) => setNewUserPhone(e.target.value)}
+                        className="w-full border-2 border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., +2348012345678"
+                      />
+                    </div>
                     <button
                       onClick={handleRegisterPhoneNumber}
                       disabled={processing || !newUserPhone}
@@ -954,23 +858,55 @@ const ManualPage: React.FC = () => {
                           placeholder="Assembly address"
                         />
                       </div>
-                    </div>
 
+                      {/* Profile Picture Upload */}
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Profile Picture *
+                        </label>
+                        <div className="flex items-center gap-4">
+                          {previewUrl && (
+                            <img 
+                              src={previewUrl} 
+                              alt="Preview" 
+                              className="w-24 h-24 rounded-full object-cover border-4 border-green-500"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <label className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 cursor-pointer transition-all">
+                              <Upload className="w-5 h-5" />
+                              {profilePicture ? 'Change Photo' : 'Upload Photo'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                className="hidden"
+                              />
+                            </label>
+                            {profilePicture && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Selected: {profilePicture.name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="bg-gray-50 p-4 rounded-lg mt-4">
                       <h4 className="font-semibold text-gray-800 mb-2">📍 Assigned Bed (Auto-filled)</h4>
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-gray-500">Hall</p>
-                          <p className="font-semibold text-gray-800">{selectedUser?.hall_name}</p>
+                          <p className="font-semibold text-gray-800">{selectedUser.hall_name}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Floor</p>
-                          <p className="font-semibold text-gray-800">{selectedUser?.floor}</p>
+                          <p className="font-semibold text-gray-800">{selectedUser.floor}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Bed</p>
-                          <p className="font-semibold text-gray-800">{selectedUser?.bed_number}</p>
+                          <p className="font-semibold text-gray-800">{selectedUser.bed_number}</p>
                         </div>
                       </div>
                     </div>
@@ -984,7 +920,7 @@ const ManualPage: React.FC = () => {
                       </button>
                       <button
                         onClick={handleCompleteReassignment}
-                        disabled={processing || !newUserData.first_name || !newUserData.category || !newUserData.arrival_date}
+                        disabled={processing || !newUserData.first_name || !newUserData.category || !newUserData.arrival_date || !profilePicture}
                         className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg disabled:opacity-50"
                       >
                         {processing ? "Registering & Reassigning..." : "Complete Reassignment ✓"}
@@ -992,89 +928,6 @@ const ManualPage: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Assignment Modal */}
-        {selectedUser && reallocateMode === 'assign' && (
-          <div 
-            className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-cover bg-center"
-            style={{ backgroundImage: `url('/images/campBg.jpg')` }}
-          >
-            <div className="absolute inset-0 bg-green-600/40"></div>
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg z-10">
-              <div className="bg-linear-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-2xl font-bold">Assign Bedspace</h2>
-                    <p className="text-green-100 text-sm mt-1">{selectedUser?.first_name || selectedUser?.phone_number}</p>
-                  </div>
-                  <button 
-                    onClick={() => { setSelectedUser(null); setReallocateMode(null); }}
-                    className="p-2 hover:bg-white/20 rounded-lg transition-all"
-                  >
-                    <XCircle className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Hall Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={newHall}
-                    onChange={(e) => setNewHall(e.target.value)}
-                    className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="e.g., William Braham Hall"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Floor *
-                  </label>
-                  <input
-                    type="text"
-                    value={newFloor}
-                    onChange={(e) => setNewFloor(e.target.value)}
-                    className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="e.g., 1, 2, 3"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bed Number *
-                  </label>
-                  <input
-                    type="text"
-                    value={newBed}
-                    onChange={(e) => setNewBed(e.target.value)}
-                    className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="e.g., 12a, 15b"
-                  />
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-6 rounded-b-2xl flex justify-end gap-3">
-                <button
-                  onClick={() => { setSelectedUser(null); setReallocateMode(null); }}
-                  className="px-6 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveAllocation}
-                  disabled={processing}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg disabled:opacity-50"
-                >
-                  {processing ? "Assigning..." : "Assign Bed"}
-                </button>
               </div>
             </div>
           </div>
