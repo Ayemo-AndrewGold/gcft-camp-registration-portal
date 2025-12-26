@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon, Upload } from "lucide-react";
+import { Search, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon, Upload, X } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -41,7 +41,7 @@ const ManualPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-  const [reallocateMode, setReallocateMode] = useState<'release' | 'assign' | 'reassign' | null>(null);
+  const [reallocateMode, setReallocateMode] = useState<'reassign' | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [processing, setProcessing] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -75,8 +75,6 @@ const ManualPage: React.FC = () => {
     Ghana: ["Greater Accra","Ashanti","Central","Eastern"],
     UK: ["England","Scotland","Wales","Northern Ireland"],
   };
-
-  const [registrationStep, setRegistrationStep] = useState<'phone' | 'details' | 'confirm'>('phone');
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
@@ -163,14 +161,16 @@ const ManualPage: React.FC = () => {
     }
     setSelectedUser(user);
     setReallocateMode('reassign');
-    setRegistrationStep('phone');
     setNewUserPhone("");
     setProfilePicture(null);
     setPreviewUrl("");
-    setNewUserData({ category: user.category || "" });
+    setNewUserData({ 
+      category: user.category || "",
+      gender: user.gender || ""
+    });
   };
 
-  const handleNewUserFieldChange = (field: string, value: string) => {
+  const handleNewUserFieldChange = (field: string, value: string | number) => {
     let updatedData = { ...newUserData, [field]: value };
 
     if (field === "category") {
@@ -179,21 +179,21 @@ const ManualPage: React.FC = () => {
       let autoAgeRange = "";
 
       const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string }> = {
-        "Young Brothers": { gender: "Male", marital: "Single" },
-        "Married (male)": { gender: "Male", marital: "Married" },
+        "Young Brothers": { gender: "Male", marital: "Single", ageRange: "18-25" },
+        "Married (male)": { gender: "Male", marital: "Married", ageRange: "26-55" },
         "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17" },
-        "Young Sisters": { gender: "Female", marital: "Single" },
-        "Married (female)": { gender: "Female", marital: "Married" },
+        "Young Sisters": { gender: "Female", marital: "Single", ageRange: "18-25" },
+        "Married (female)": { gender: "Female", marital: "Married", ageRange: "26-55" },
         "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17" },
-        "Nursing Mothers": { gender: "Female", marital: "" },
-        "Elder Sisters (56 & Above)": { gender: "Female", marital: "Married" },
-        "Elder Brothers (56 & Above)": { gender: "Male", marital: "Married" },
+        "Nursing Mothers": { gender: "Female", marital: "Married", ageRange: "26-55" },
+        "Elder Sisters (56 & Above)": { gender: "Female", marital: "Married", ageRange: "56+" },
+        "Elder Brothers (56 & Above)": { gender: "Male", marital: "Married", ageRange: "56+" },
       };
       
-      if (categoryMap[value]) {
-        autoGender = categoryMap[value].gender;
-        autoMaritalStatus = categoryMap[value].marital;
-        autoAgeRange = categoryMap[value].ageRange || "";
+      if (categoryMap[value as string]) {
+        autoGender = categoryMap[value as string].gender;
+        autoMaritalStatus = categoryMap[value as string].marital;
+        autoAgeRange = categoryMap[value as string].ageRange || "";
       }
       
       updatedData = { 
@@ -201,6 +201,13 @@ const ManualPage: React.FC = () => {
         gender: autoGender,
         marital_status: autoMaritalStatus,
         age_range: autoAgeRange
+      };
+    }
+
+    if (field === "country") {
+      updatedData = {
+        ...updatedData,
+        state: ""
       };
     }
 
@@ -221,42 +228,14 @@ const ManualPage: React.FC = () => {
 
   const showChildrenFields = newUserData.category === "Nursing Mothers";
 
-  const handleRegisterPhoneNumber = async () => {
+  const handleCompleteReassignment = async () => {
+    // Validate phone number
     if (!newUserPhone || newUserPhone.length < 10) {
-      showToast("Please enter a valid phone number", 'error');
+      showToast("Please enter a valid phone number (minimum 10 digits)", 'error');
       return;
     }
 
-    setProcessing(true);
-    try {
-      const response = await fetch(`${API_BASE}/register-number`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: newUserPhone }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 400 || errorData.detail?.includes('already') || errorData.detail?.includes('exists')) {
-          showToast('⚠️ This phone number has been registered before. Please use a different number.', 'error');
-          setProcessing(false);
-          return;
-        }
-        throw new Error(errorData.detail || 'Phone number registration failed');
-      }
-
-      showToast('✅ Phone number registered successfully!', 'success');
-      setTimeout(() => {
-        setRegistrationStep('details');
-      }, 1000);
-    } catch (err: any) {
-      showToast(`❌ ${err.message}`, 'error');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleCompleteReassignment = async () => {
+    // Required fields validation
     const requiredFields = ['first_name', 'category', 'age_range', 'country', 'state', 'arrival_date', 'local_assembly', 'local_assembly_address'];
     const missingFields = requiredFields.filter(field => !newUserData[field as keyof NewUserRegistration]);
     
@@ -275,12 +254,27 @@ const ManualPage: React.FC = () => {
       return;
     }
 
+    // Special validation for Nursing Mothers
+    if (showChildrenFields) {
+      if (!newUserData.no_children || newUserData.no_children <= 0) {
+        showToast('Please enter number of children (must be greater than 0)', 'error');
+        return;
+      }
+      if (!newUserData.names_children || newUserData.names_children.trim() === '') {
+        showToast('Please enter names of children', 'error');
+        return;
+      }
+    }
+
     setProcessing(true);
     try {
       if (selectedUser) {
         const formData = new FormData();
         
+        // Add file
         formData.append('file', profilePicture);
+        
+        // Add all required fields
         formData.append('category', newUserData.category || '');
         formData.append('first_name', newUserData.first_name || '');
         formData.append('age_range', newUserData.age_range || '');
@@ -291,6 +285,7 @@ const ManualPage: React.FC = () => {
         formData.append('local_assembly', newUserData.local_assembly || '');
         formData.append('local_assembly_address', newUserData.local_assembly_address || '');
         
+        // Add optional fields
         if (newUserData.no_children) {
           formData.append('no_children', String(newUserData.no_children));
         }
@@ -301,6 +296,8 @@ const ManualPage: React.FC = () => {
           formData.append('medical_issues', newUserData.medical_issues);
         }
 
+        console.log('Sending request to:', `${API_BASE}/register-user-manual/${newUserPhone}?number_late_comer=${selectedUser.phone_number}`);
+
         const response = await fetch(
           `${API_BASE}/register-user-manual/${newUserPhone}?number_late_comer=${selectedUser.phone_number}`,
           {
@@ -310,8 +307,9 @@ const ManualPage: React.FC = () => {
         );
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'User registration failed');
+          const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
+          console.error('Error response:', errorData);
+          throw new Error(errorData.detail || `Registration failed with status ${response.status}`);
         }
 
         const result = await response.json();
@@ -323,15 +321,16 @@ const ManualPage: React.FC = () => {
         
         await fetchUsers(true);
         
+        // Reset form
         setSelectedUser(null);
         setReallocateMode(null);
         setNewUserPhone("");
         setNewUserData({});
-        setRegistrationStep('phone');
         setProfilePicture(null);
         setPreviewUrl("");
       }
     } catch (err: any) {
+      console.error('Registration error:', err);
       showToast(`❌ ${err.message}`, 'error');
     } finally {
       setProcessing(false);
@@ -562,9 +561,7 @@ const ManualPage: React.FC = () => {
 
         {/* Reassignment Modal */}
         {selectedUser && reallocateMode === 'reassign' && (
-          <div 
-            className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto bg-black/50"
-          >
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto bg-black/50">
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8 max-h-[90vh] overflow-y-auto">
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl sticky top-0 z-10">
                 <div className="flex justify-between items-center">
@@ -583,7 +580,6 @@ const ManualPage: React.FC = () => {
                       setReallocateMode(null);
                       setNewUserPhone("");
                       setNewUserData({});
-                      setRegistrationStep('phone');
                       setProfilePicture(null);
                       setPreviewUrl("");
                     }}
@@ -594,340 +590,271 @@ const ManualPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-6">
-                {/* Step 1: Phone Number */}
-                {registrationStep === 'phone' && (
-                  <div className="space-y-4">
-                    <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mb-4">
-                      <p className="text-sm text-blue-800">
-                        <strong>Step 1:</strong> Enter walk-in camper's phone number to start registration
-                      </p>
+              <div className="p-6 space-y-6">
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    New User Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={newUserPhone}
+                    onChange={(e) => setNewUserPhone(e.target.value)}
+                    placeholder="Enter phone number"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Profile Picture */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Profile Picture <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-4">
+                    {previewUrl && (
+                      <div className="relative">
+                        <img src={previewUrl} alt="Preview" className="w-24 h-24 object-cover rounded-lg" />
+                        <button
+                          onClick={() => {
+                            setProfilePicture(null);
+                            setPreviewUrl("");
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    <label className="flex items-center gap-2 px-4 py-3 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-200">
+                      <Upload className="w-5 h-5 text-gray-600" />
+                      <span className="text-sm text-gray-700">Upload Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* First Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserData.first_name || ""}
+                    onChange={(e) => handleNewUserFieldChange('first_name', e.target.value)}
+                    placeholder="Enter first name"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newUserData.category || ""}
+                    onChange={(e) => handleNewUserFieldChange('category', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Age Range */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Age Range <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newUserData.age_range || ""}
+                    onChange={(e) => handleNewUserFieldChange('age_range', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select age range</option>
+                    <option value="10-17">10-17</option>
+                    <option value="18-25">18-25</option>
+                    <option value="26-55">26-55</option>
+                    <option value="56+">56+</option>
+                  </select>
+                </div>
+
+                {/* Marital Status */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Marital Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newUserData.marital_status || ""}
+                    onChange={(e) => handleNewUserFieldChange('marital_status', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select marital status</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                  </select>
+                </div>
+
+                {/* Children Fields (for Nursing Mothers) */}
+                {showChildrenFields && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Number of Children <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newUserData.no_children || ""}
+                        onChange={(e) => handleNewUserFieldChange('no_children', e.target.value)}
+                        placeholder="Enter number of children"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Phone Number *
+                        Names of Children <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="tel"
-                        value={newUserPhone}
-                        onChange={(e) => setNewUserPhone(e.target.value)}
-                        className="w-full border-2 border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="e.g., +2348012345678"
+                      <textarea
+                        value={newUserData.names_children || ""}
+                        onChange={(e) => handleNewUserFieldChange('names_children', e.target.value)}
+                        placeholder="Enter names of children"
+                        rows={3}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
-                    <button
-                      onClick={handleRegisterPhoneNumber}
-                      disabled={processing || !newUserPhone}
-                      className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium shadow-lg disabled:opacity-50"
-                    >
-                      {processing ? "Verifying..." : "Verify Phone Number →"}
-                    </button>
-                  </div>
+                  </>
                 )}
 
-                {/* Step 2: User Details */}
-                {registrationStep === 'details' && (
-                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded mb-4 sticky top-0 z-10">
-                      <p className="text-sm text-green-800">
-                        <strong>Step 2:</strong> Fill in camper details (Phone: {newUserPhone})
-                      </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Category - Can be changed */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Category * 
-                          <span className="text-xs text-gray-500 ml-2">(Auto-suggested)</span>
-                        </label>
-                        <select
-                          value={newUserData.category || ""}
-                          onChange={(e) => handleNewUserFieldChange("category", e.target.value)}
-                          className="w-full border-2 border-green-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 bg-green-50"
-                        >
-                          <option value="">Select Category</option>
-                          {categories.map(cat => (
-                            <option key={cat.value} value={cat.value}>{cat.label}</option>
-                          ))}
-                        </select>
+                {/* Country */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Country <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newUserData.country || ""}
+                    onChange={(e) => handleNewUserFieldChange('country', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                  >
+                    <option value="">Select country</option>
+                    {countriesList.map((country) => (
+                      <option key={country.value} value={country.value}>{country.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* State */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newUserData.state || ""}
+                    onChange={(e) => handleNewUserFieldChange('state', e.target.value)}
+                    disabled={!newUserData.country}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <option value="">Select state</option>
+                    {newUserData.country && countryStates[newUserData.country]?.map((state) => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Arrival Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Arrival Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={newUserData.arrival_date || ""}
+                    onChange={(e) => handleNewUserFieldChange('arrival_date', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Local Assembly */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Local Assembly <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserData.local_assembly || ""}
+                    onChange={(e) => handleNewUserFieldChange('local_assembly', e.target.value)}
+                    placeholder="Enter local assembly"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Local Assembly Address */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Local Assembly Address <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={newUserData.local_assembly_address || ""}
+                    onChange={(e) => handleNewUserFieldChange('local_assembly_address', e.target.value)}
+                    placeholder="Enter local assembly address"
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Medical Issues (Optional) */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Medical Issues (Optional)
+                  </label>
+                  <textarea
+                    value={newUserData.medical_issues || ""}
+                    onChange={(e) => handleNewUserFieldChange('medical_issues', e.target.value)}
+                    placeholder="Enter any medical issues"
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex gap-4 pt-4">
+                  <button
+                    onClick={handleCompleteReassignment}
+                    disabled={processing}
+                    className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processing ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Processing...</span>
                       </div>
-
-                      {/* Full Name */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Full Name *
-                        </label>
-                        <input
-                          type="text"
-                          value={newUserData.first_name || ""}
-                          onChange={(e) => handleNewUserFieldChange("first_name", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="John Doe"
-                        />
-                      </div>
-
-                      {/* Age Range */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Age Range *
-                        </label>
-                        <select
-                          value={newUserData.age_range || ""}
-                          onChange={(e) => handleNewUserFieldChange("age_range", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                        >
-                          <option value="">Select Age Range</option>
-                          <option value="10-17">10-17</option>
-                          <option value="18-25">18-25</option>
-                          <option value="26-35">26-35</option>
-                          <option value="36-45">36-45</option>
-                          <option value="46-55">46-55</option>
-                          <option value="56-65">56-65</option>
-                          <option value="66-70">66-70</option>
-                          <option value="71+">71+</option>
-                        </select>
-                      </div>
-
-                      {/* Gender (Can be manually selected, auto-fills category) */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Gender * 
-                          <span className="text-xs text-gray-500 ml-2">(Auto-fills category)</span>
-                        </label>
-                        <select
-                          value={newUserData.gender || ""}
-                          onChange={(e) => handleNewUserFieldChange("gender", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                        >
-                          <option value="">Select Gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                        </select>
-                      </div>
-
-                      {/* Marital Status (Can be manually selected, auto-fills category) */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Marital Status * 
-                          <span className="text-xs text-gray-500 ml-2">(Auto-fills category)</span>
-                        </label>
-                        <select
-                          value={newUserData.marital_status || ""}
-                          onChange={(e) => handleNewUserFieldChange("marital_status", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                        >
-                          <option value="">Select Status</option>
-                          <option value="Single">Single</option>
-                          <option value="Married">Married</option>
-                          <option value="Widowed">Widowed</option>
-                          <option value="Divorced">Divorced</option>
-                        </select>
-                      </div>
-
-                      {/* Children Fields - Only if married (and not "Married (male)") */}
-                      {showChildrenFields && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Number of Children (age 0-10)
-                            </label>
-                            <input
-                              type="number"
-                              value={newUserData.no_children || ""}
-                              onChange={(e) => handleNewUserFieldChange("no_children", e.target.value)}
-                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                              placeholder="e.g., 2"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Names of Children (age 0-10)
-                            </label>
-                            <input
-                              type="text"
-                              value={newUserData.names_children || ""}
-                              onChange={(e) => handleNewUserFieldChange("names_children", e.target.value)}
-                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                              placeholder="e.g., John, Mary"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {/* Country */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Country *
-                        </label>
-                        <select
-                          value={newUserData.country || ""}
-                          onChange={(e) => handleNewUserFieldChange("country", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                        >
-                          <option value="">Select Country</option>
-                          {countriesList.map(c => (
-                            <option key={c.value} value={c.value}>{c.label}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* State */}
-                      {newUserData.country && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            State / Province *
-                          </label>
-                          {countryStates[newUserData.country] ? (
-                            <select
-                              value={newUserData.state || ""}
-                              onChange={(e) => handleNewUserFieldChange("state", e.target.value)}
-                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                            >
-                              <option value="">Select State</option>
-                              {countryStates[newUserData.country].map(s => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              type="text"
-                              value={newUserData.state || ""}
-                              onChange={(e) => handleNewUserFieldChange("state", e.target.value)}
-                              className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                              placeholder="Enter your state"
-                            />
-                          )}
-                        </div>
-                      )}
-
-                      {/* Arrival Date */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Arrival Date *
-                        </label>
-                        <input
-                          type="date"
-                          value={newUserData.arrival_date || ""}
-                          onChange={(e) => handleNewUserFieldChange("arrival_date", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          min="2026-03-01"
-                          max="2026-04-30"
-                        />
-                      </div>
-
-                      {/* Medical Issues */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Disability / Allergy
-                        </label>
-                        <input
-                          type="text"
-                          value={newUserData.medical_issues || ""}
-                          onChange={(e) => handleNewUserFieldChange("medical_issues", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="Optional"
-                        />
-                      </div>
-
-                      {/* Local Assembly */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Local Assembly *
-                        </label>
-                        <input
-                          type="text"
-                          value={newUserData.local_assembly || ""}
-                          onChange={(e) => handleNewUserFieldChange("local_assembly", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="Your local assembly"
-                        />
-                      </div>
-
-                      {/* Assembly Address */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Assembly Address *
-                        </label>
-                        <input
-                          type="text"
-                          value={newUserData.local_assembly_address || ""}
-                          onChange={(e) => handleNewUserFieldChange("local_assembly_address", e.target.value)}
-                          className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="Assembly address"
-                        />
-                      </div>
-
-                      {/* Profile Picture Upload */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Profile Picture *
-                        </label>
-                        <div className="flex items-center gap-4">
-                          {previewUrl && (
-                            <img 
-                              src={previewUrl} 
-                              alt="Preview" 
-                              className="w-24 h-24 rounded-full object-cover border-4 border-green-500"
-                            />
-                          )}
-                          <div className="flex-1">
-                            <label className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 cursor-pointer transition-all">
-                              <Upload className="w-5 h-5" />
-                              {profilePicture ? 'Change Photo' : 'Upload Photo'}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                className="hidden"
-                              />
-                            </label>
-                            {profilePicture && (
-                              <p className="text-xs text-gray-500 mt-2">
-                                Selected: {profilePicture.name}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg mt-4">
-                      <h4 className="font-semibold text-gray-800 mb-2">📍 Assigned Bed (Auto-filled)</h4>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-500">Hall</p>
-                          <p className="font-semibold text-gray-800">{selectedUser.hall_name}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Floor</p>
-                          <p className="font-semibold text-gray-800">{selectedUser.floor}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Bed</p>
-                          <p className="font-semibold text-gray-800">{selectedUser.bed_number}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 mt-6">
-                      <button
-                        onClick={() => setRegistrationStep('phone')}
-                        className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-all font-medium"
-                      >
-                        ← Back
-                      </button>
-                      <button
-                        onClick={handleCompleteReassignment}
-                        disabled={processing || !newUserData.first_name || !newUserData.category || !newUserData.arrival_date || !profilePicture}
-                        className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg disabled:opacity-50"
-                      >
-                        {processing ? "Registering & Reassigning..." : "Complete Reassignment ✓"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                    ) : (
+                      'Complete Reassignment'
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { 
+                      setSelectedUser(null); 
+                      setReallocateMode(null);
+                      setNewUserPhone("");
+                      setNewUserData({});
+                      setProfilePicture(null);
+                      setPreviewUrl("");
+                    }}
+                    disabled={processing}
+                    className="px-6 py-4 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
