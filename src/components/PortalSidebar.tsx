@@ -31,6 +31,7 @@ export default function PortalSidebar() {
     {href: '/portal/verifiedcampers', label: 'Verified Campers', icon: User},
     {href: '/portal/allcampers', label: 'All Campers', icon: Hotel},
     {href: '/portal/manualreg', label: 'Manual Reallocation', icon: User},
+    {href: '/portal/backupreg', label: ' Backup Registration', icon: User},
   ];
 
   const pathname = usePathname();
