@@ -117,7 +117,7 @@ export default function HallAnalytics() {
 
   // Enhanced Chart Data
   const doughnutData = {
-    labels: ["Occupied Beds", "Available Beds", "Reserved"],
+    labels: ["Occupied Beds (Verified)", "Available Beds", "Unverified"],
     datasets: [
       {
         data: [
