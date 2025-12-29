@@ -335,10 +335,10 @@ function Register2Content() {
       
       const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string; country?: string }> = {
         "Young Brothers": { gender: "Male", marital: "Single", ageRange: "18-25", country: "Nigeria" },
-        "Married (male)": { gender: "Male", marital: "Married", ageRange: "36-45", country: "Nigeria" },
+        "Married (male)": { gender: "Male", marital: "Married", ageRange: "26-35", country: "Nigeria" },
         "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17", country: "Nigeria" },
         "Young Sisters": { gender: "Female", marital: "Single", ageRange: "18-25", country: "Nigeria" },
-        "Married (female)": { gender: "Female", marital: "Married", ageRange: "36-45", country: "Nigeria" },
+        "Married (female)": { gender: "Female", marital: "Married", ageRange: "26-35", country: "Nigeria" },
         "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17", country: "Nigeria" },
         "Nursing Mothers": { gender: "Female", marital: "Married", country: "Nigeria", ageRange: "26-35" },
         "Elderly Sisters (56 & Above)": { gender: "Female", marital: "Married", ageRange: "56-65", country: "Nigeria" },
