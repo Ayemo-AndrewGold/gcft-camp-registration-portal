@@ -108,12 +108,12 @@ export default function HallAnalytics() {
   const occupancyRate =
     data && data.total_beds > 0
       ? ((data.current_user_count / data.total_beds) * 100).toFixed(1)
-      : 0;
+      : "0";
 
   const verificationRate = 
     data && data.current_user_count > 0
       ? ((data.verified_user_count / data.current_user_count) * 100).toFixed(1)
-      : 0;
+      : "0";
 
   // Enhanced Chart Data
   const doughnutData = {
