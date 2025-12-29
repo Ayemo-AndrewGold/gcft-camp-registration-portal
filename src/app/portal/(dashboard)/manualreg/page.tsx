@@ -246,52 +246,51 @@ const ManualPage: React.FC = () => {
     });
   };
 
-  const handleNewUserFieldChange = (field: string, value: string | number) => {
-    let updatedData = { ...newUserData, [field]: value };
+    const handleNewUserFieldChange = (field: string, value: string | number) => {
+      let updatedData = { ...newUserData, [field]: value };
 
-    if (field === "category") {
-      let autoGender = "";
-      let autoMaritalStatus = "";
-      let autoAgeRange = "";
-      let autoCountry = "";
+      if (field === "category") {
+        let autoGender = "";
+        let autoMaritalStatus = "";
+        let autoAgeRange = "";
+        let autoCountry = "Nigeria";  // ← Default to Nigeria for all categories
 
-      const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string; country?: string }> = {
-        "Young Brothers": { gender: "Male", marital: "Single", ageRange: "18-25", country: "Nigeria" },
-        "Married (male)": { gender: "Male", marital: "Married", ageRange: "36-45", country: "Nigeria" },
-        "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17", country: "Nigeria" },
-        "Young Sisters": { gender: "Female", marital: "Single", ageRange: "18-25", country: "Nigeria" },
-        "Married (female)": { gender: "Female", marital: "Married", ageRange: "36-45", country: "Nigeria" },
-        "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17", country: "Nigeria" },
-        "Nursing Mothers": { gender: "Female", marital: "Married", country: "Nigeria", ageRange: "26-35" },
-        "Elderly Sisters (56 & Above)": { gender: "Female", marital: "Married", ageRange: "56-65", country: "Nigeria" },
-        "Elderly Brothers (56 & Above)": { gender: "Male", marital: "Married", ageRange: "56-65", country: "Nigeria" },
-      };
-      
-      if (categoryMap[value as string]) {
-        autoGender = categoryMap[value as string].gender;
-        autoMaritalStatus = categoryMap[value as string].marital;
-        autoAgeRange = categoryMap[value as string].ageRange || "";
-        autoCountry = categoryMap[value].country || "";
+        const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string }> = {
+          "Young Brothers": { gender: "Male", marital: "Single", ageRange: "18-25" },
+          "Married (male)": { gender: "Male", marital: "Married", ageRange: "36-45" },
+          "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17" },
+          "Young Sisters": { gender: "Female", marital: "Single", ageRange: "18-25" },
+          "Married (female)": { gender: "Female", marital: "Married", ageRange: "36-45" },
+          "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17" },
+          "Nursing Mothers": { gender: "Female", marital: "Married", ageRange: "26-35" },
+          "Elderly Sisters (56 & Above)": { gender: "Female", marital: "Married", ageRange: "56-65" },
+          "Elderly Brothers (56 & Above)": { gender: "Male", marital: "Married", ageRange: "56-65" },
+        };
+        
+        if (categoryMap[value as string]) {
+          autoGender = categoryMap[value as string].gender;
+          autoMaritalStatus = categoryMap[value as string].marital;
+          autoAgeRange = categoryMap[value as string].ageRange || "";
+        }
+        
+        updatedData = { 
+          ...updatedData, 
+          gender: autoGender,
+          marital_status: autoMaritalStatus,
+          age_range: autoAgeRange,
+          country: autoCountry  // ← Always set to Nigeria
+        };
       }
-      
-      updatedData = { 
-        ...updatedData, 
-        gender: autoGender,
-        marital_status: autoMaritalStatus,
-        age_range: autoAgeRange,
-        country: autoCountry
-      };
-    }
 
-    if (field === "country") {
-      updatedData = {
-        ...updatedData,
-        state: ""
-      };
-    }
+      if (field === "country") {
+        updatedData = {
+          ...updatedData,
+          state: ""  // Reset state when country changes
+        };
+      }
 
-    setNewUserData(updatedData);
-  };
+      setNewUserData(updatedData);
+    };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -332,7 +331,7 @@ const ManualPage: React.FC = () => {
     }
 
     if (showChildrenFields) {
-      if (!newUserData.no_children || newUserData.no_children <= 0) {
+      if (!newUserData.no_children || Number(newUserData.no_children) <= 0) {  // ← Convert to number
         showToast('Please enter number of children (must be greater than 0)', 'error');
         return;
       }
@@ -935,7 +934,7 @@ const ManualPage: React.FC = () => {
                     value={newUserData.local_assembly_address || ""}
                     onChange={(e) => handleNewUserFieldChange('local_assembly_address', e.target.value)}
                     placeholder="Enter local assembly address"
-                    rows={3}
+                    rows={1}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -947,8 +946,8 @@ const ManualPage: React.FC = () => {
                   <textarea
                     value={newUserData.medical_issues || ""}
                     onChange={(e) => handleNewUserFieldChange('medical_issues', e.target.value)}
-                    placeholder="Enter any medical issues"
-                    rows={3}
+                    placeholder="Enter any medical issues; blood pressure concerns etc."
+                    rows={1}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
