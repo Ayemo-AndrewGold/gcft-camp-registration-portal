@@ -19,6 +19,7 @@ interface UserData {
   hall_name?: string;
   floor?: string;
   bed_number?: string;
+  extra_beds?: number[];
   is_active?: boolean;
   profile_picture_url?: string;
 }
@@ -58,7 +59,6 @@ const Portal: React.FC = () => {
     setUserData(null);
 
     try {
-      // Fetch user data
       const res = await fetch(
         `${BASE_URL}/user/${encodeURIComponent(cleanedPhone)}`
       );
@@ -66,7 +66,15 @@ const Portal: React.FC = () => {
       if (res.ok) {
         const data: UserData = await res.json();
         
-        // Check if user is verified by fetching active users
+        // Ensure extra_beds is always an array
+        if (!Array.isArray(data.extra_beds)) {
+          data.extra_beds = [];
+        }
+        
+        console.log("User data fetched:", data);
+        console.log("Extra beds:", data.extra_beds);
+        
+        // Check if user is verified
         try {
           const activeUsersRes = await fetch(`${BASE_URL}/active-users`);
           if (activeUsersRes.ok) {
@@ -74,13 +82,10 @@ const Portal: React.FC = () => {
             const isVerified = activeUsers.some(
               (u: any) => u.phone_number === cleanedPhone
             );
-            
-            // Update user data with verification status
             data.is_active = isVerified;
           }
         } catch (err) {
           console.error("Error checking verification status:", err);
-          // If we can't check, default to false
           data.is_active = false;
         }
 
@@ -130,7 +135,8 @@ const Portal: React.FC = () => {
         setUserData({
           ...userData,
           is_active: true,
-          ...activatedUser
+          ...activatedUser,
+          extra_beds: Array.isArray(activatedUser.extra_beds) ? activatedUser.extra_beds : userData.extra_beds
         });
         
         showToast("🎉 User verified successfully!", 'success');
@@ -166,7 +172,6 @@ const Portal: React.FC = () => {
     >
       <div className="absolute inset-0 bg-green-800/70"></div>
 
-      {/* Toast Notification */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
@@ -222,7 +227,6 @@ const Portal: React.FC = () => {
           </button>
         </div>
 
-        {/* User Details Card */}
         {userData && (
           <div className="mt-3 sm:mt-8 bg-white rounded-2xl shadow-xl p-6 text-left space-y-4">
             {/* Profile Picture */}
@@ -363,6 +367,31 @@ const Portal: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Extra Beds Section - NEW! */}
+            {userData.extra_beds && userData.extra_beds.length > 0 && (
+              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 text-purple-600 flex items-center justify-center">
+                    <span className="text-lg">🛏️</span>
+                  </div>
+                  <h3 className="font-semibold text-purple-900">Extra Beds Assigned</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {userData.extra_beds.map((bed, idx) => (
+                    <span 
+                      key={idx} 
+                      className="inline-block px-3 py-1.5 bg-purple-200 text-purple-800 rounded-lg text-sm font-medium shadow-sm"
+                    >
+                      Bed {bed}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-purple-700 mt-2">
+                  This user has been allocated {userData.extra_beds.length} additional bed{userData.extra_beds.length > 1 ? 's' : ''} for nursing mother requirements.
+                </p>
+              </div>
+            )}
 
             {/* Action Buttons */}
             {userData.hall_name && (
