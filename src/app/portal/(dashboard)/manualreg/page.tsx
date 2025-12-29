@@ -229,80 +229,92 @@ const ManualPage: React.FC = () => {
     setFilteredUsers(results);
   }, [searchTerm, users]);
 
-  const handleReassignToNewUser = (user: UserData) => {
-    if (!user.hall_name || !user.floor || !user.bed_number) {
-      showToast("This user has no bed allocation to reassign.", 'error');
-      return;
-    }
-    setSelectedUser(user);
-    setReallocateMode('reassign');
-    setNewUserPhone("");
-    setProfilePicture(null);
-    setPreviewUrl("");
-    setNewUserData({ 
-      category: user.category || "",
-      gender: user.gender || "",
-      arrival_date: "2026-04-02"
-    });
-  };
 
-    const handleNewUserFieldChange = (field: string, value: string | number) => {
-      let updatedData = { ...newUserData, [field]: value };
+          // Add this before handleReassignToNewUser
+        const getAutoFilledDataForCategory = (category: string) => {
+          let autoGender = "";
+          let autoMaritalStatus = "";
+          let autoAgeRange = "";
+          let autoCountry = "Nigeria";
 
-      if (field === "category") {
-        let autoGender = "";
-        let autoMaritalStatus = "";
-        let autoAgeRange = "";
-        let autoCountry = "Nigeria";  // ← Default to Nigeria for all categories
-
-        const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string }> = {
-          "Young Brothers": { gender: "Male", marital: "Single", ageRange: "18-25" },
-          "Married (male)": { gender: "Male", marital: "Married", ageRange: "36-45" },
-          "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17" },
-          "Young Sisters": { gender: "Female", marital: "Single", ageRange: "18-25" },
-          "Married (female)": { gender: "Female", marital: "Married", ageRange: "36-45" },
-          "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17" },
-          "Nursing Mothers": { gender: "Female", marital: "Married", ageRange: "26-35" },
-          "Elderly Sisters (56 & Above)": { gender: "Female", marital: "Married", ageRange: "56-65" },
-          "Elderly Brothers (56 & Above)": { gender: "Male", marital: "Married", ageRange: "56-65" },
+          const categoryMap: Record<string, { gender: string; marital: string; ageRange?: string }> = {
+            "Young Brothers": { gender: "Male", marital: "Single", ageRange: "18-25" },
+            "Married (male)": { gender: "Male", marital: "Married", ageRange: "36-45" },
+            "Teens Below 18 (male)": { gender: "Male", marital: "Single", ageRange: "10-17" },
+            "Young Sisters": { gender: "Female", marital: "Single", ageRange: "18-25" },
+            "Married (female)": { gender: "Female", marital: "Married", ageRange: "36-45" },
+            "Teens Below 18 (female)": { gender: "Female", marital: "Single", ageRange: "10-17" },
+            "Nursing Mothers": { gender: "Female", marital: "Married", ageRange: "26-35" },
+            "Elderly Sisters (56 & Above)": { gender: "Female", marital: "Married", ageRange: "56-65" },
+            "Elderly Brothers (56 & Above)": { gender: "Male", marital: "Married", ageRange: "56-65" },
+          };
+          
+          if (categoryMap[category]) {
+            autoGender = categoryMap[category].gender;
+            autoMaritalStatus = categoryMap[category].marital;
+            autoAgeRange = categoryMap[category].ageRange || "";
+          }
+          
+          return {
+            gender: autoGender,
+            marital_status: autoMaritalStatus,
+            age_range: autoAgeRange,
+            country: autoCountry
+          };
         };
-        
-        if (categoryMap[value as string]) {
-          autoGender = categoryMap[value as string].gender;
-          autoMaritalStatus = categoryMap[value as string].marital;
-          autoAgeRange = categoryMap[value as string].ageRange || "";
-        }
-        
-        updatedData = { 
-          ...updatedData, 
-          gender: autoGender,
-          marital_status: autoMaritalStatus,
-          age_range: autoAgeRange,
-          country: autoCountry  // ← Always set to Nigeria
+        const handleReassignToNewUser = (user: UserData) => {
+          if (!user.hall_name || !user.floor || !user.bed_number) {
+            showToast("This user has no bed allocation to reassign.", 'error');
+            return;
+          }
+          setSelectedUser(user);
+          setReallocateMode('reassign');
+          setNewUserPhone("");
+          setProfilePicture(null);
+          setPreviewUrl("");
+          
+          const category = user.category || "";
+          const autoFilledData = getAutoFilledDataForCategory(category);
+          
+          setNewUserData({ 
+            category: category,
+            ...autoFilledData,
+            arrival_date: "2026-04-02"
+          });
         };
-      }
 
-      if (field === "country") {
-        updatedData = {
-          ...updatedData,
-          state: ""  // Reset state when country changes
+          const handleNewUserFieldChange = (field: string, value: string | number) => {
+          let updatedData = { ...newUserData, [field]: value };
+
+          if (field === "category") {
+            const autoFilledData = getAutoFilledDataForCategory(value as string);
+            updatedData = { 
+              ...updatedData, 
+              ...autoFilledData
+            };
+          }
+
+          if (field === "country") {
+            updatedData = {
+              ...updatedData,
+              state: ""
+            };
+          }
+
+          setNewUserData(updatedData);
         };
-      }
 
-      setNewUserData(updatedData);
-    };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        showToast('File size must be less than 5MB', 'error');
-        return;
-      }
-      setProfilePicture(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
-  };
+        const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+              showToast('File size must be less than 5MB', 'error');
+              return;
+            }
+            setProfilePicture(file);
+            setPreviewUrl(URL.createObjectURL(file));
+          }
+        };
 
   const showChildrenFields = newUserData.category === "Nursing Mothers";
 
