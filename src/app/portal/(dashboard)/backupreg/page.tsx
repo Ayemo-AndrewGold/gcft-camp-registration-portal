@@ -23,7 +23,9 @@ interface BackupRegistration {
 }
 
 const BackupReg: React.FC = () => {
-  const [formData, setFormData] = useState<Partial<BackupRegistration>>({});
+  const [formData, setFormData] = useState<Partial<BackupRegistration>>({
+  arrival_date: "2026-04-02"
+  });
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
@@ -592,7 +594,7 @@ const BackupReg: React.FC = () => {
             <textarea
               value={formData.local_assembly_address || ""}
               onChange={(e) => handleFieldChange('local_assembly_address', e.target.value)}
-              rows={3}
+              rows={1}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
           </div>
@@ -602,9 +604,9 @@ const BackupReg: React.FC = () => {
             <textarea
               value={formData.medical_issues || ""}
               onChange={(e) => handleFieldChange('medical_issues', e.target.value)}
-              rows={3}
+              rows={1}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-               placeholder="Blood Pressure etc..."
+               placeholder="Enter any medical issues; blood pressure concerns etc."
             />
           </div>
 
