@@ -672,8 +672,9 @@ const ManualPage: React.FC = () => {
         </div>
 
         {selectedUser && reallocateMode === 'reassign' && (
-          <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 overflow-y-auto bg-black/50">
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8 max-h-[90vh] overflow-y-auto">
+          // <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 overflow-y-auto bg-green-800/50">
+            <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 overflow-y-auto bg-green-800/50">
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8 max-h-[100vh] overflow-y-auto">
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl sticky top-0 z-10">
                 <div className="flex justify-between items-center">
                   <div>
