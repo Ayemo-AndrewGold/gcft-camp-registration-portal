@@ -108,12 +108,12 @@ export default function HallAnalytics() {
   const occupancyRate =
     data && data.total_beds > 0
       ? ((data.current_user_count / data.total_beds) * 100).toFixed(1)
-      : 0;
+      : "0";
 
   const verificationRate = 
     data && data.current_user_count > 0
       ? ((data.verified_user_count / data.current_user_count) * 100).toFixed(1)
-      : 0;
+      : "0";
 
   // Enhanced Chart Data
   const doughnutData = {
@@ -273,11 +273,11 @@ export default function HallAnalytics() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-6 px-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 py-6 px-4">
       <div className="max-w-[1600px] mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-slate-200">
-          <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-6 sm:px-8 py-8 text-white">
+          <div className="bg-linear-to-r from-emerald-600 via-green-600 to-teal-600 px-6 sm:px-8 py-8 text-white">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -594,7 +594,7 @@ export default function HallAnalytics() {
                           >
                             <td className="px-6 py-5">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold">
+                                <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold">
                                   {idx + 1}
                                 </div>
                                 <span className="font-bold text-slate-800 text-base">
@@ -669,7 +669,7 @@ export default function HallAnalytics() {
               <div className="space-y-6">
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg p-6 text-white">
+                  <div className="bg-linear-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg p-6 text-white">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold opacity-90">Hall Efficiency</h3>
                       <TrendingUp className="w-6 h-6 opacity-75" />
@@ -686,7 +686,7 @@ export default function HallAnalytics() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white">
+                  <div className="bg-linear-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold opacity-90">Verification Rate</h3>
                       <UserCheck className="w-6 h-6 opacity-75" />
@@ -703,7 +703,7 @@ export default function HallAnalytics() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg p-6 text-white">
+                  <div className="bg-linear-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg p-6 text-white">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold opacity-90">Space Utilization</h3>
                       <Building2 className="w-6 h-6 opacity-75" />
@@ -737,7 +737,7 @@ export default function HallAnalytics() {
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all"
+                            className="h-full bg-linear-to-r from-emerald-500 to-teal-500 rounded-full transition-all"
                             style={{ width: `${occupancyRate}%` }}
                           />
                         </div>
@@ -750,7 +750,7 @@ export default function HallAnalytics() {
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
+                            className="h-full bg-linear-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
                             style={{ width: `${verificationRate}%` }}
                           />
                         </div>
@@ -765,7 +765,7 @@ export default function HallAnalytics() {
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all"
+                            className="h-full bg-linear-to-r from-amber-500 to-orange-500 rounded-full transition-all"
                             style={{ width: `${((data.remaining_space / data.total_beds) * 100).toFixed(1)}%` }}
                           />
                         </div>
@@ -806,10 +806,10 @@ export default function HallAnalytics() {
                             className="flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
                           >
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white ${
-                              rank === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
-                              rank === 1 ? 'bg-gradient-to-br from-slate-400 to-slate-600' :
-                              rank === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                              'bg-gradient-to-br from-emerald-500 to-teal-600'
+                              rank === 0 ? 'bg-linear-to-br from-yellow-400 to-yellow-600' :
+                              rank === 1 ? 'bg-linear-to-br from-slate-400 to-slate-600' :
+                              rank === 2 ? 'bg-linear-to-br from-orange-400 to-orange-600' :
+                              'bg-linear-to-br from-emerald-500 to-teal-600'
                             }`}>
                               {rank + 1}
                             </div>
@@ -841,7 +841,7 @@ export default function HallAnalytics() {
                     Capacity Insights & Recommendations
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="p-5 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                    <div className="p-5 bg-linear-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
                           <TrendingUp className="w-5 h-5 text-white" />
@@ -854,7 +854,7 @@ export default function HallAnalytics() {
                       <p className="text-sm text-slate-600">Floors above 80% capacity</p>
                     </div>
 
-                    <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                    <div className="p-5 bg-linear-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
                           <AlertCircle className="w-5 h-5 text-white" />
@@ -870,7 +870,7 @@ export default function HallAnalytics() {
                       <p className="text-sm text-slate-600">Floors at 50-80% capacity</p>
                     </div>
 
-                    <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                    <div className="p-5 bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
                           <TrendingDown className="w-5 h-5 text-white" />
@@ -966,7 +966,7 @@ function MetricCard({
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-300 overflow-hidden group">
-      <div className={`h-1 bg-gradient-to-r ${colorClasses[color].bg}`} />
+      <div className={`h-1 bg-linear-to-r ${colorClasses[color].bg}`} />
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className={`p-3 rounded-xl ${colorClasses[color].icon} group-hover:scale-110 transition-transform`}>
