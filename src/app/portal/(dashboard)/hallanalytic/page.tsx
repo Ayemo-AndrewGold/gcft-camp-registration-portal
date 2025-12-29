@@ -329,7 +329,7 @@ export default function HallAnalytics() {
                         const floorOccupancy =
                           floor.no_beds > 0
                             ? ((floor.active_users_count / floor.no_beds) * 100).toFixed(1)
-                            : 0;
+                            : "0";
                         return (
                           <tr
                             key={floor.floor_no}
