@@ -108,12 +108,12 @@ export default function HallAnalytics() {
   const occupancyRate =
     data && data.total_beds > 0
       ? ((data.current_user_count / data.total_beds) * 100).toFixed(1)
-      : "0";
+      : 0;
 
   const verificationRate = 
     data && data.current_user_count > 0
       ? ((data.verified_user_count / data.current_user_count) * 100).toFixed(1)
-      : "0";
+      : 0;
 
   // Enhanced Chart Data
   const doughnutData = {
@@ -141,9 +141,9 @@ export default function HallAnalytics() {
         position: "bottom" as const,
         labels: {
           padding: 20,
-          font: { size: 13, weight: '600' },
+          font: { size: 13, weight: 'bold' as const },
           usePointStyle: true,
-          pointStyle: 'circle',
+          pointStyle: 'circle' as const,
         }
       },
       tooltip: { 
@@ -152,7 +152,7 @@ export default function HallAnalytics() {
         },
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
         padding: 12,
-        titleFont: { size: 14, weight: 'bold' },
+        titleFont: { size: 14, weight: 'bold' as const },
         bodyFont: { size: 13 },
       },
     },
@@ -194,14 +194,14 @@ export default function HallAnalytics() {
         position: "top" as const,
         labels: {
           padding: 15,
-          font: { size: 13, weight: '600' },
+          font: { size: 13, weight: 'bold' as const },
           usePointStyle: true,
         }
       },
       tooltip: {
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
         padding: 12,
-        titleFont: { size: 14, weight: 'bold' },
+        titleFont: { size: 14, weight: 'bold' as const },
         bodyFont: { size: 13 },
       },
     },
@@ -209,7 +209,7 @@ export default function HallAnalytics() {
       x: {
         stacked: true,
         grid: { display: false },
-        ticks: { font: { size: 12, weight: '600' } },
+        ticks: { font: { size: 12, weight: 'bold' as const } },
       },
       y: {
         stacked: true,
@@ -267,7 +267,7 @@ export default function HallAnalytics() {
       },
       x: {
         grid: { display: false },
-        ticks: { font: { size: 12, weight: '600' } },
+        ticks: { font: { size: 12, weight: 'bold' as const } },
       },
     },
   };
