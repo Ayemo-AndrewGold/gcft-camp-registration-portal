@@ -19,6 +19,7 @@ interface HallData {
   total: number;
   percentage: string;
   color: string;
+  [key: string]: string | number;
 }
 
 interface HallStats {
@@ -291,7 +292,7 @@ const AdminDashboard: React.FC = () => {
                     paddingAngle={3}
                     dataKey="value"
                     nameKey="name"
-                    label={({ name, percent }) => `${name.split(' ')[0]}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${(name ?? '').toString().split(' ')[0]}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                     labelLine={true}
                   >
                     {allHallsData.map((entry, index) => (
