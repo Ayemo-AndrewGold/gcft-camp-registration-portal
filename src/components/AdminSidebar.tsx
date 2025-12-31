@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AiOutlineDashboard } from 'react-icons/ai';
-import { FiMenu, FiX } from 'react-icons/fi';
+import { FiImage, FiMenu, FiX } from 'react-icons/fi';
 
 import { FiSettings, } from 'react-icons/fi'
-import { Hotel, HandHeart, User, LogOut } from "lucide-react";
+import { Hotel, HandHeart, User, LogOut, } from "lucide-react";
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
 
@@ -32,7 +32,9 @@ export default function AdminSidebar () {
     { href: '/admin/dashboard', label: 'Dashboard', icon: AiOutlineDashboard },
     { href: '/admin/users', label: 'User Management', icon: User },
     { href: '/admin/hostel', label: 'Hostel Management', icon: Hotel },
-    { href: '/admin/donation', label: 'Donation Analytics', icon: HandHeart },
+    { href: '/admin/hallanalytics', label: 'Hall Analytics', icon: AiOutlineDashboard },
+    { href: '/admin/imageupload', label: 'Image Upload', icon: FiImage },
+    // { href: '/admin/donation', label: 'Donation Analytics', icon: HandHeart },
     { href: '/admin/settings', label: 'Settings', icon: FiSettings },
   ];
 
@@ -126,7 +128,7 @@ export default function AdminSidebar () {
           fixed left-0 top-0 h-screen shadow-md p-4 font-[lexend] transition-all duration-300 ease-in-out z-50
           ${isDarkMode
             ? 'bg-gradient-to-b from-gray-800 via-gray-900 to-gray-800 border-gray-700'
-            : 'bg-gradient-to-b from-blue-100 via-green-400 to-green-900'
+            : 'bg-gradient-to-b from-blue-300 via-blue-300 to-green-600'
           }
           w-72 
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -144,7 +146,7 @@ export default function AdminSidebar () {
               priority
               className='bg-white p-1 rounded-full'
             />
-            <h2 className={isDarkMode ? 'text-blue-400' : 'text-green-600'}>
+            <h2 className={isDarkMode ? 'text-blue-400' : 'text-white-600'}>
               GCFT ADMIN
             </h2>
           </div>
