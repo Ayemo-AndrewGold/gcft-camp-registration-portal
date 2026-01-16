@@ -459,7 +459,7 @@ const UserManagement: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-1 p-2 rounded-lg shadow-md">
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
@@ -560,7 +560,7 @@ const UserManagement: React.FC = () => {
         </div>
       )}
       
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
+      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 ">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <div className="flex items-center justify-between flex-wrap gap-4">

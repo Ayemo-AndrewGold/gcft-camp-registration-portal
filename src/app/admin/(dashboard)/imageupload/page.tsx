@@ -265,7 +265,7 @@ const ImageUpload = () => {
   );
 
   return (
-    <div className="min-h-screen p-2 sm:p-6 lg:p-8 bg-gradient-to-br from-green-50 via-white to-green-100 w-full sm:mt-4 rounded-lg shadow-md font-sans">
+    <div className="min-h-screen p-2 bg-gradient-to-br from-green-500 via-white to-green-100 w-full mt-1 rounded-lg shadow-md font-sans">
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div

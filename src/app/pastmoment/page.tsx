@@ -293,7 +293,7 @@ const PastMoment = () => {
 
 export default PastMoment;
 
-
+// ------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -421,13 +421,13 @@ export default PastMoment;
 
 //   return (
 //     <section className="w-full bg-white font-sans">
-//       <div className="sm:px-10 lg:px-20 px-5 py-20">
+//       <div className="sm:px-5 px-3 py-20">
 //         {/* Title */}
 //         <div className="max-w-[1440px] mx-auto text-center mb-12">
-//           <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-green-700 to-green-500 bg-clip-text text-transparent mb-4">
+//           <h1 className="text-3xl font-bold bg-linear-to-r from-green-700 to-lime-400 bg-clip-text text-transparent">
 //             Camp Meeting Gallery
 //           </h1>
-//           <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+//           <p className="text-gray-600 max-w-2xl mx-auto">
 //             Relive the special moments from our Easter Camp meetings through these beautiful memories.
 //           </p>
 //         </div>
@@ -492,7 +492,7 @@ export default PastMoment;
 //                 <img
 //                   src={img.image_url}
 //                   alt={img.image_name}
-//                   className="w-full rounded-xl sm:rounded-2xl object-cover transition-transform duration-500 group-hover:scale-110"
+//                   className="w-full rounded-lg object-cover transition-transform duration-500 group-hover:scale-110"
 //                   loading="lazy"
 //                 />
 

@@ -157,7 +157,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen p-2 sm:p-6 lg:p-8 bg-gradient-to-t from-green-100 via-white to-green-200 w-full sm:mt-2 rounded-lg shadow-md">
+    <div className="min-h-screen p-2 bg-gradient-to-t from-green-100 via-white to-green-200 w-full sm:mt-2 rounded-lg shadow-md">
       <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-3 lg:p-3">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">

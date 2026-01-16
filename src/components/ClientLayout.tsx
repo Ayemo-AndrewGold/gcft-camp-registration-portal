@@ -50,9 +50,9 @@ export default function ClientLayout({
         `}
       >
         {/* Content Container with Professional Styling */}
-        <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="max-w-[1600px] mx-auto px-1">
           {/* Content wrapper with responsive padding */}
-          <div className="bg-white/50 backdrop-blur-sm p-2 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm min-h-[calc(100vh-5rem)] sm:min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-7rem)]">
+          <div className="bg-white/50 backdrop-blur-sm rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm min-h-[calc(100vh-5rem)] sm:min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-7rem)]">
             {children}
           </div>
         </div>
