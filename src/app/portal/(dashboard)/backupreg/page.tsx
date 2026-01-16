@@ -297,7 +297,7 @@ const BackupReg: React.FC = () => {
 
       {/* Camera Modal */}
       {isCameraOpen && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-3">
           <div className="relative bg-white rounded-xl overflow-hidden max-w-[25rem] w-full">
             <button
               onClick={() => setIsCameraOpen(false)}
