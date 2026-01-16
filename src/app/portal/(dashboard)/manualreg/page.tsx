@@ -483,7 +483,7 @@ const ManualPage: React.FC = () => {
       )}
 
       {isCameraOpen && (
-        <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-2 md:p-4">
+        <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center ">
           <div className="relative bg-white rounded-xl overflow-hidden max-w-[25rem] w-full">
             <button
               onClick={() => setIsCameraOpen(false)}
@@ -492,14 +492,13 @@ const ManualPage: React.FC = () => {
               ×
             </button>
 
-            <div className="p-2 md:p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Capture Photo</h3>
+            <div>
               <Webcam
                 audio={false}
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 videoConstraints={{ facingMode: "user", width: 1280, height: 720 }}
-                className="w-full rounded-lg"
+                className="w-full"
               />
             </div>
 
