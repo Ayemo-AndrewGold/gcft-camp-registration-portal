@@ -69,7 +69,7 @@ export default function RootLayout({
       >
         {children}
         {/* Safe Toaster */}
-        <Toaster position="top-right" reverseOrder={false} />
+        <Toaster position="top-right" reverseOrder={false} containerStyle={{ zIndex: 2147483647 }}/>
         <ChatWidget />
       </body>
     </html>

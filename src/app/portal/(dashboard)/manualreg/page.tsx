@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, Link as LinkIcon, Upload, X, Camera } from "lucide-react";
 import Webcam from "react-webcam";
+import toast from "react-hot-toast";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
 
@@ -319,8 +320,8 @@ const ManualPage: React.FC = () => {
   const showChildrenFields = newUserData.category === "Nursing Mothers";
 
   const handleCompleteReassignment = async () => {
-    if (!newUserPhone || newUserPhone.length < 10) {
-      showToast("Please enter a valid phone number (minimum 10 digits)", 'error');
+    if (!newUserPhone || newUserPhone.length !== 11) {
+      showToast("Please enter a valid phone number (11 digits)", 'error');
       return;
     }
 
@@ -347,10 +348,10 @@ const ManualPage: React.FC = () => {
         showToast('Please enter number of children (must be greater than 0)', 'error');
         return;
       }
-      if (!newUserData.names_children?.trim()) {
-        showToast('Please enter names of children', 'error');
-        return;
-      }
+      // if (!newUserData.names_children?.trim()) {
+      //   showToast('Please enter names of children', 'error');
+      //   return;
+      // }
     }
 
     setProcessing(true);
@@ -482,16 +483,16 @@ const ManualPage: React.FC = () => {
       )}
 
       {isCameraOpen && (
-        <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-xl overflow-hidden max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-2 md:p-4">
+          <div className="relative bg-white rounded-xl overflow-hidden max-w-[25rem] w-full">
             <button
               onClick={() => setIsCameraOpen(false)}
-              className="absolute top-4 right-4 z-10 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-2xl hover:bg-red-700"
+              className="absolute top-2 right-4 z-10 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-2xl hover:bg-red-700"
             >
               ×
             </button>
 
-            <div className="p-4">
+            <div className="p-2 md:p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Capture Photo</h3>
               <Webcam
                 audio={false}
@@ -502,20 +503,20 @@ const ManualPage: React.FC = () => {
               />
             </div>
 
-            <div className="p-6 bg-gray-100 flex justify-center gap-4">
+            <div className="p-2 md:p-4 bg-gray-100 flex justify-center gap-4">
               <button
                 onClick={capturePhoto}
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg text-lg flex items-center gap-2"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-8 py-3 rounded-full text-lg flex items-center gap-2"
               >
                 <Camera className="w-5 h-5" />
                 Capture Photo
               </button>
-              <button
+              {/* <button
                 onClick={() => setIsCameraOpen(false)}
                 className="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg text-lg"
               >
                 Cancel
-              </button>
+              </button> */}
             </div>
           </div>
         </div>

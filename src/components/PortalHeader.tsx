@@ -99,7 +99,7 @@ export default function PortalHeader() {
   return (
     <>
       <header 
-        className={`fixed top-0 right-0 h-16 border-b border-gray-200 shadow-md z-40 font-[lexend] transition-all duration-300 ease-in-out
+        className={`fixed top-0 right-0 h-16 border-b border-gray-200 shadow-md z-30 font-[lexend] transition-all duration-300 ease-in-out
           ${isDarkMode 
             ? 'bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800' 
             : 'bg-gradient-to-r from-blue-100 via-white to-purple-200'

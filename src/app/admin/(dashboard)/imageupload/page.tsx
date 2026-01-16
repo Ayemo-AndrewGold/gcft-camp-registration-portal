@@ -208,17 +208,12 @@ const ImageUpload = () => {
     if (!window.confirm('Are you sure you want to delete this image?')) return;
 
     try {
-      // Try the correct endpoint format
       const res = await fetch(`${API_BASE}/images/${imageId}/`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
-      console.log('Delete response status:', res.status);
+      console.log('Delete image response status:', res.status);
 
-      // Check for successful deletion (204 No Content or 200 OK)
       if (res.status === 204 || res.status === 200) {
         showToast('Image deleted successfully!', 'success');
         if (selectedCategory) fetchImages(selectedCategory);
@@ -229,6 +224,38 @@ const ImageUpload = () => {
       }
     } catch (error) {
       console.error('Error deleting image:', error);
+      showToast('Network error. Please check your connection.', 'error');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: number, categoryName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the category "${categoryName}"?\n\nWarning: This will also delete all images in this category!`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/categories/${categoryId}`, {
+        method: 'DELETE',
+      });
+
+      console.log('Delete category response status:', res.status);
+
+      if (res.status === 204 || res.status === 200) {
+        showToast('Category deleted successfully!', 'success');
+        
+        // If deleted category was selected, clear selection
+        if (selectedCategory === categoryId) {
+          setSelectedCategory(null);
+          setImages([]);
+        }
+        
+        // Refresh categories list
+        fetchCategories();
+      } else {
+        const errorText = await res.text();
+        console.error('Delete category failed:', res.status, errorText);
+        showToast(`Failed to delete category: ${res.status}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
       showToast('Network error. Please check your connection.', 'error');
     }
   };
@@ -278,17 +305,33 @@ const ImageUpload = () => {
           </h2>
           <div className="flex flex-wrap gap-3">
             {categories.map((cat) => (
-              <button
+              <div 
                 key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                  selectedCategory === cat.id
-                    ? 'bg-green-600 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className="relative group"
               >
-                {cat.category_name}
-              </button>
+                <button
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    selectedCategory === cat.id
+                      ? 'bg-green-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {cat.category_name}
+                </button>
+                
+                {/* Delete Category Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCategory(cat.id, cat.category_name);
+                  }}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                  title="Delete Category"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ))}
             {categories.length === 0 && (
               <p className="text-gray-500 italic">No categories yet. Create one to get started!</p>
@@ -342,7 +385,9 @@ const ImageUpload = () => {
                       <h3 className="font-semibold text-gray-800 truncate">{img.image_name}</h3>
                       <span
                         className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                          img.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                          img.status === 'in-use' || img.status === 'active' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-gray-100 text-gray-700'
                         }`}
                       >
                         {img.status}
