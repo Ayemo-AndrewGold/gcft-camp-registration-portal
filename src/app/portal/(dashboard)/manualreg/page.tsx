@@ -343,17 +343,6 @@ const ManualPage: React.FC = () => {
       return;
     }
 
-    if (showChildrenFields) {
-      if (!newUserData.no_children || Number(newUserData.no_children) <= 0) {  // ← Convert to number
-        showToast('Please enter number of children (must be greater than 0)', 'error');
-        return;
-      }
-      // if (!newUserData.names_children?.trim()) {
-      //   showToast('Please enter names of children', 'error');
-      //   return;
-      // }
-    }
-
     setProcessing(true);
     try {
       const formDataToSend = new FormData();
@@ -855,7 +844,7 @@ const ManualPage: React.FC = () => {
                   <>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Number of Children <span className="text-red-500">*</span>
+                        Number of Children 
                       </label>
                       <input
                         type="number"
@@ -868,7 +857,7 @@ const ManualPage: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Names of Children <span className="text-red-500">*</span>
+                        Names of Children 
                       </label>
                       <textarea
                         value={newUserData.names_children || ""}
