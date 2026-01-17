@@ -188,17 +188,6 @@ const BackupReg: React.FC = () => {
       return;
     }
 
-    if (showChildrenFields) {
-      if (!formData.no_children || formData.no_children <= 0) {
-        showToast('Please enter number of children (must be greater than 0)', 'error');
-        return;
-      }
-      if (!formData.names_children?.trim()) {
-        showToast('Please enter names of children', 'error');
-        return;
-      }
-    }
-
     setProcessing(true);
 
     try {
@@ -508,7 +497,7 @@ const BackupReg: React.FC = () => {
             <>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Number of Children <span className="text-red-500">*</span>
+                  Number of Children 
                 </label>
                 <input
                   type="number"
@@ -520,7 +509,7 @@ const BackupReg: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Names of Children <span className="text-red-500">*</span>
+                  Names of Children
                 </label>
                 <textarea
                   value={formData.names_children || ""}
