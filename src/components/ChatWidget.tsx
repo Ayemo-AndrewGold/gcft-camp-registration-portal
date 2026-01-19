@@ -86,7 +86,7 @@ export default function ChatWidget() {
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
-    const whatsappNumber = "2348124106198";
+    const whatsappNumber = "2348141919997";
     const baseUrl = `https://wa.me/${whatsappNumber}`;
 
     setTyping(true);
