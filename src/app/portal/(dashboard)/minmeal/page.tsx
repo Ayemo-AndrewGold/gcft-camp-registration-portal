@@ -95,16 +95,22 @@ const MinisterCard = ({ minister }: { minister: Minister }) => (
 const Toast = ({ toast }: { toast: { message: string; type: "success" | "error" | "info" } | null }) => {
   if (!toast) return null;
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[90vw] max-w-lg">
       <div
-        className={`flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl text-white text-sm font-medium ${
-          toast.type === "success" ? "bg-green-600" : toast.type === "error" ? "bg-red-500" : "bg-green-800"
+        className={`flex items-start gap-3 px-6 py-4 rounded-2xl shadow-2xl text-white font-medium border-2 ${
+          toast.type === "success"
+            ? "bg-green-600 border-green-400"
+            : toast.type === "error"
+            ? "bg-red-600 border-red-400"
+            : "bg-green-800 border-green-600"
         }`}
       >
-        {toast.type === "success" ? <CheckCircle className="w-5 h-5 shrink-0" /> :
-         toast.type === "error"   ? <XCircle     className="w-5 h-5 shrink-0" /> :
-                                    <AlertCircle  className="w-5 h-5 shrink-0" />}
-        {toast.message}
+        <div className="shrink-0 mt-0.5">
+          {toast.type === "success" ? <CheckCircle className="w-6 h-6" /> :
+           toast.type === "error"   ? <XCircle     className="w-6 h-6" /> :
+                                      <AlertCircle  className="w-6 h-6" />}
+        </div>
+        <span className="text-sm leading-relaxed break-words">{toast.message}</span>
       </div>
     </div>
   );
@@ -116,7 +122,6 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
   const [phoneNumber, setPhoneNumber]   = useState("");
   const [mealNumber,  setMealNumber]    = useState("");
   const [mealType,    setMealType]      = useState<MealType>("breakfast");
-  const [date,        setDate]          = useState(todayDate());
   const [processing,  setProcessing]    = useState(false);
   const [lastResult,  setLastResult]    = useState<any>(null);
 
@@ -130,9 +135,14 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
     setLastResult(null);
 
     try {
-      const payload: any = { meal_type: mealType, date };
-      if (phoneNumber) payload.phone_number = phoneNumber;
-      if (mealNumber)  payload.identification_meal_number = parseInt(mealNumber);
+      // Build payload — date is handled server-side, do NOT send it
+      const payload: any = {
+        meal_type: mealType,
+      };
+      if (phoneNumber.trim()) payload.phone_number = phoneNumber.trim();
+      if (mealNumber.trim())  payload.identification_meal_number = parseInt(mealNumber.trim(), 10);
+
+      console.log("📤 Sending payload:", JSON.stringify(payload));
 
       const res = await fetch(`${API_BASE}/ticketing/meals/mark`, {
         method: "POST",
@@ -140,18 +150,29 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
         body: JSON.stringify(payload),
       });
 
+      console.log("📥 Response status:", res.status);
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Unknown error" }));
-        throw new Error(err.detail || `Server error: ${res.status}`);
+        // Try to get detailed error from response
+        const rawText = await res.text();
+        console.error("❌ Error response body:", rawText);
+        let detail = `Server error: ${res.status}`;
+        try {
+          const errJson = JSON.parse(rawText);
+          detail = errJson.detail || JSON.stringify(errJson);
+        } catch {}
+        throw new Error(detail);
       }
 
       const result = await res.json();
+      console.log("✅ Success:", result);
       setLastResult(result);
-      showToast(`✅ Meal marked successfully!`, "success");
+      showToast(`Meal marked successfully! (${mealType})`, "success");
       setPhoneNumber("");
       setMealNumber("");
     } catch (err: any) {
-      showToast(`❌ ${err.message || "Failed to mark meal"}`, "error");
+      console.error("Registration error:", err);
+      showToast(err.message || "Failed to mark meal. Check console for details.", "error");
     } finally {
       setProcessing(false);
     }
@@ -204,18 +225,7 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 -mt-3">Fill in at least one of the fields above</p>
-
-      {/* Date */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-        />
-      </div>
+      <p className="text-xs text-gray-400 -mt-3">Fill in at least one of the fields above. Date is recorded automatically by the server.</p>
 
       {/* Submit */}
       <button
@@ -455,7 +465,7 @@ const MinisterMealTracker: React.FC = () => {
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), 8000);
   };
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
