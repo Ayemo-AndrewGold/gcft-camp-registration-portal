@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw, Calendar } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
+const BATCH_SIZE = 100; // how many to fetch per request
 
 interface UserData {
   id?: number;
@@ -35,9 +36,9 @@ const AllCampers: React.FC = () => {
   const [deletingUsers, setDeletingUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [fetchProgress, setFetchProgress] = useState<string>("");
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Toast notification component
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -48,12 +49,9 @@ const AllCampers: React.FC = () => {
       const value = u[k as keyof UserData];
       if (value !== undefined && value !== null && value !== "") {
         let stringValue = String(value);
-        
-        // Special handling for floor field - remove "Floor " prefix if present
         if (k === 'floor' && stringValue.startsWith('Floor ')) {
           stringValue = stringValue.replace('Floor ', '');
         }
-        
         return stringValue;
       }
     }
@@ -64,18 +62,51 @@ const AllCampers: React.FC = () => {
     if (!dateString) return "—";
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
     } catch {
       return dateString;
     }
   };
 
-  // Fetch users with their active status
+  // ── Core fetch: loops through all pages until we get everything ──────────
+  const fetchAllUsers = async (): Promise<UserData[]> => {
+    const allUsers: UserData[] = [];
+    let skip = 0;
+    let keepGoing = true;
+
+    while (keepGoing) {
+      setFetchProgress(`Loading... ${allUsers.length} users fetched so far`);
+
+      const res = await fetch(
+        `${API_BASE}/users?skip=${skip}&limit=${BATCH_SIZE}`,
+        { headers: { 'Cache-Control': 'no-cache' } }
+      );
+
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      const batch: UserData[] = await res.json();
+
+      if (!Array.isArray(batch)) throw new Error("Unexpected response format");
+
+      allUsers.push(...batch);
+
+      // If the batch is smaller than BATCH_SIZE, we've reached the end
+      if (batch.length < BATCH_SIZE) {
+        keepGoing = false;
+      } else {
+        skip += BATCH_SIZE;
+      }
+    }
+
+    setFetchProgress("");
+    return allUsers;
+  };
+
   const fetchUsers = async (showRefreshing = false) => {
     if (showRefreshing) {
       setRefreshing(true);
@@ -84,41 +115,20 @@ const AllCampers: React.FC = () => {
     }
 
     try {
-      // Fetch ALL users
-      const res = await fetch(`${API_BASE}/users`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      
-      const data = await res.json();
-      
-      if (!Array.isArray(data)) {
-        throw new Error("Unexpected response format: expected an array");
-      }
+      const [allUsers, activeUsersRes] = await Promise.all([
+        fetchAllUsers(),
+        fetch(`${API_BASE}/active-users`, { headers: { 'Cache-Control': 'no-cache' } })
+      ]);
 
-      // Fetch active/verified users
-      const activeUsersRes = await fetch(`${API_BASE}/active-users`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
       const activeUsers = activeUsersRes.ok ? await activeUsersRes.json() : [];
       const activePhones = new Set(activeUsers.map((u: any) => u.phone_number));
 
-      console.log("Total registered users:", data.length);
+      console.log("Total registered users:", allUsers.length);
       console.log("Total verified users:", activeUsers.length);
 
-      // Add is_active field based on whether user is in active users list
-      const usersWithStatus = data.map((user: any) => ({
+      const usersWithStatus = allUsers.map((user: any) => ({
         ...user,
-        is_active: activePhones.has(user.phone_number)
+        is_active: activePhones.has(user.phone_number),
       }));
 
       setUsers(usersWithStatus);
@@ -129,6 +139,7 @@ const AllCampers: React.FC = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setFetchProgress("");
     }
   };
 
@@ -153,7 +164,6 @@ const AllCampers: React.FC = () => {
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
 
-  // Calculate stats
   const verifiedCount = users.filter(u => u.is_active === true).length;
   const notVerifiedCount = users.filter(u => !u.is_active).length;
 
@@ -166,37 +176,20 @@ const AllCampers: React.FC = () => {
     setEditData((prev) => (prev ? { ...prev, [field]: value } : null));
   };
 
-  // Handle Save
   const handleSave = async () => {
     if (!selectedUser || !editData) return;
-
     try {
       const res = await fetch(`${API_BASE}/user/${selectedUser.phone_number}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData),
       });
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
       showToast("✅ User updated successfully!", 'success');
-
       const updatedUser = { ...editData };
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === selectedUser.phone_number ? updatedUser : u
-        )
-      );
-      setFilteredUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === selectedUser.phone_number ? updatedUser : u
-        )
-      );
-
+      setUsers(prev => prev.map(u => u.phone_number === selectedUser.phone_number ? updatedUser : u));
+      setFilteredUsers(prev => prev.map(u => u.phone_number === selectedUser.phone_number ? updatedUser : u));
       setSelectedUser(null);
       setEditData(null);
     } catch (err: any) {
@@ -205,57 +198,25 @@ const AllCampers: React.FC = () => {
     }
   };
 
-  // Delete category
   const handleDeleteCategory = async (user: UserData) => {
     if (!user.category_id) {
       showToast("This user has no category to delete.", 'error');
       return;
     }
+    if (!window.confirm(`Are you sure you want to delete the category "${user.category}" for ${user.first_name || user.phone_number}?`)) return;
 
-    if (!window.confirm(`Are you sure you want to delete the category "${user.category}" for ${user.first_name || user.phone_number}?`)) {
-      return;
-    }
-
-    setDeletingUsers((prev) => [...prev, user.phone_number]);
-
+    setDeletingUsers(prev => [...prev, user.phone_number]);
     try {
-      const response = await fetch(`${API_BASE}/category/${user.category_id}`, {
-        method: 'DELETE',
-      });
-      
+      const response = await fetch(`${API_BASE}/category/${user.category_id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-      
-      const data = await response.json().catch(() => ({}));
-      console.log("Delete response:", data);
-      
       showToast("✅ Category deleted successfully!", 'success');
-
-      const updatedUser = { 
-        ...user, 
-        category: undefined, 
-        category_id: null 
-      };
-
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === user.phone_number ? updatedUser : u
-        )
-      );
-
-      setFilteredUsers((prev) =>
-        prev.map((u) =>
-          u.phone_number === user.phone_number ? updatedUser : u
-        )
-      );
-
+      const updatedUser = { ...user, category: undefined, category_id: null };
+      setUsers(prev => prev.map(u => u.phone_number === user.phone_number ? updatedUser : u));
+      setFilteredUsers(prev => prev.map(u => u.phone_number === user.phone_number ? updatedUser : u));
     } catch (err: any) {
-      console.error("Delete error details:", {
-        message: err.message
-      });
-      
       if (err.message.includes('404')) {
         showToast("❌ Category not found. It may have already been deleted.", 'error');
       } else if (err.message.includes('403')) {
@@ -266,9 +227,7 @@ const AllCampers: React.FC = () => {
         showToast(`❌ Failed to delete category: ${err.message}`, 'error');
       }
     } finally {
-      setDeletingUsers((prev) =>
-        prev.filter((id) => id !== user.phone_number)
-      );
+      setDeletingUsers(prev => prev.filter(id => id !== user.phone_number));
     }
   };
 
@@ -277,8 +236,11 @@ const AllCampers: React.FC = () => {
       <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
         <section className="bg-white min-h-screen rounded-lg shadow-md flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto"></div>
+            <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"></div>
             <p className="text-gray-600 text-lg">Loading users...</p>
+            {fetchProgress && (
+              <p className="text-green-600 text-sm mt-2 font-medium">{fetchProgress}</p>
+            )}
           </div>
         </section>
       </div>
@@ -287,24 +249,18 @@ const AllCampers: React.FC = () => {
 
   return (
     <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
-      {/* Toast Notification */}
+      {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
-            toast.type === 'success' 
-              ? 'bg-green-500 text-white' 
-              : 'bg-red-500 text-white'
+            toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
           }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : (
-              <XCircle className="w-5 h-5" />
-            )}
+            {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
             <span className="font-medium">{toast.message}</span>
           </div>
         </div>
       )}
-      
+
       <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-3 lg:p-3">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
@@ -313,19 +269,17 @@ const AllCampers: React.FC = () => {
               <h1 className="text-[1.8rem] sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
                 Registered Campers
               </h1>
-              <p className="text-gray-600">
-                All registered users for Easter Camp Meeting 2026
-              </p>
+              <p className="text-gray-600">All registered users for Easter Camp Meeting 2026</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => fetchUsers(true)}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
-                title="Refresh user list and status"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+                title="Refresh user list"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                {refreshing ? 'Refreshing...' : 'Refresh'}
+                {refreshing ? `${fetchProgress || 'Refreshing...'}` : 'Refresh'}
               </button>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Total Users</p>
@@ -333,7 +287,7 @@ const AllCampers: React.FC = () => {
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Verified</p>
-                <p className="text-2xl font-bold text-blue-600">{verifiedCount}</p>
+                <p className="text-2xl font-bold text-green-700">{verifiedCount}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Not Verified</p>
@@ -343,7 +297,7 @@ const AllCampers: React.FC = () => {
           </div>
         </div>
 
-        {/* Search & Filter Bar */}
+        {/* Search & Filter */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -355,7 +309,6 @@ const AllCampers: React.FC = () => {
               className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
-          
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Show:</label>
             <select
@@ -376,7 +329,7 @@ const AllCampers: React.FC = () => {
           Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
         </div>
 
-        {/* User Table */}
+        {/* Table */}
         <div className="overflow-x-auto rounded-lg border-2 border-gray-200 shadow-sm">
           <table className="w-full">
             <thead>
@@ -395,22 +348,18 @@ const AllCampers: React.FC = () => {
             <tbody>
               {currentUsers.length > 0 ? (
                 currentUsers.map((user, idx) => (
-                  <tr 
-                    key={user.phone_number || user.id} 
-                    className={`${
-                      idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-green-50 transition-colors border-b border-gray-200`}
+                  <tr
+                    key={user.phone_number || user.id}
+                    className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-green-50 transition-colors border-b border-gray-200`}
                   >
                     <td className="p-4">
                       {user.is_active ? (
                         <span className="flex items-center gap-2 text-green-600 font-semibold text-sm">
-                          <CheckCircle className="w-4 h-4" />
-                          Verified
+                          <CheckCircle className="w-4 h-4" /> Verified
                         </span>
                       ) : (
                         <span className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
-                          <XCircle className="w-4 h-4" />
-                          Not Verified
+                          <XCircle className="w-4 h-4" /> Not Verified
                         </span>
                       )}
                     </td>
@@ -438,7 +387,7 @@ const AllCampers: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                         {getValue(user, "category")}
                       </span>
                     </td>
@@ -454,14 +403,12 @@ const AllCampers: React.FC = () => {
                         {getValue(user, "floor")}
                       </div>
                     </td>
-                    <td className="p-4 text-gray-700">
-                      {getValue(user, "bed_number")}
-                    </td>
+                    <td className="p-4 text-gray-700">{getValue(user, "bed_number")}</td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleUserClick(user)}
-                          className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm"
+                          className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all transform hover:scale-105 shadow-sm"
                           title="Edit User"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -504,14 +451,14 @@ const AllCampers: React.FC = () => {
           </p>
           <div className="flex gap-2">
             <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
               className="px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
               Previous
             </button>
             <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
@@ -524,106 +471,40 @@ const AllCampers: React.FC = () => {
         {selectedUser && editData && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
               <div className="sticky top-0 bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-bold">Edit User</h2>
                     <p className="text-green-100 text-sm mt-1">Update user information</p>
                   </div>
-                  <button 
-                    onClick={() => setSelectedUser(null)}
-                    className="p-2 hover:bg-white/20 rounded-lg transition-all"
-                  >
+                  <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-white/20 rounded-lg transition-all">
                     <X className="w-6 h-6" />
                   </button>
                 </div>
               </div>
-
-              {/* Modal Body */}
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      value={editData.first_name || ""}
-                      onChange={(e) => handleChange("first_name", e.target.value)}
-                      className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter full name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
-                    </label>
-                    <input
-                      type="text"
-                      value={editData.phone_number || ""}
-                      onChange={(e) => handleChange("phone_number", e.target.value)}
-                      className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category
-                    </label>
-                    <input
-                      type="text"
-                      value={editData.category || ""}
-                      onChange={(e) => handleChange("category", e.target.value)}
-                      className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter category"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Hall Name
-                    </label>
-                    <input
-                      type="text"
-                      value={editData.hall_name || ""}
-                      onChange={(e) => handleChange("hall_name", e.target.value)}
-                      className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter hall name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Floor
-                    </label>
-                    <input
-                      type="text"
-                      value={editData.floor || ""}
-                      onChange={(e) => handleChange("floor", e.target.value)}
-                      className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter floor number"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Bed Number
-                    </label>
-                    <input
-                      type="text"
-                      value={editData.bed_number || ""}
-                      onChange={(e) => handleChange("bed_number", e.target.value)}
-                      className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter bed number"
-                    />
-                  </div>
+                  {[
+                    { label: "Full Name",    field: "first_name",  placeholder: "Enter full name" },
+                    { label: "Phone Number", field: "phone_number", placeholder: "Enter phone number" },
+                    { label: "Category",     field: "category",    placeholder: "Enter category" },
+                    { label: "Hall Name",    field: "hall_name",   placeholder: "Enter hall name" },
+                    { label: "Floor",        field: "floor",       placeholder: "Enter floor number" },
+                    { label: "Bed Number",   field: "bed_number",  placeholder: "Enter bed number" },
+                  ].map(({ label, field, placeholder }) => (
+                    <div key={field}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+                      <input
+                        type="text"
+                        value={(editData[field as keyof UserData] as string) || ""}
+                        onChange={(e) => handleChange(field as keyof UserData, e.target.value)}
+                        className="w-full border-2 border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder={placeholder}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Modal Footer */}
               <div className="bg-gray-50 p-6 rounded-b-2xl flex justify-end gap-3">
                 <button
                   onClick={() => setSelectedUser(null)}
