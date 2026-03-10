@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Search, CheckCircle, User, Phone, Home, Layers, RefreshCw } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
+const BATCH_SIZE = 100;
 
 interface UserData {
   id?: number;
@@ -29,69 +30,72 @@ const VerifiedCampers: React.FC = () => {
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [fetchProgress, setFetchProgress] = useState<string>("");
 
   const getValue = (u: UserData, ...keys: string[]): string => {
     for (let k of keys) {
       const value = u[k as keyof UserData];
       if (value !== undefined && value !== null && value !== "") {
         let stringValue = String(value);
-        
-        // Special handling for floor field - remove "Floor " prefix if present
-        if (k === 'floor' && stringValue.startsWith('Floor ')) {
-          stringValue = stringValue.replace('Floor ', '');
+        if (k === "floor" && stringValue.startsWith("Floor ")) {
+          stringValue = stringValue.replace("Floor ", "");
         }
-        
         return stringValue;
       }
     }
     return "—";
   };
 
-  // Fetch only activated/verified users
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const fetchVerifiedUsers = async (showRefreshing = false) => {
-    if (showRefreshing) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+    if (showRefreshing) setRefreshing(true);
+    else setLoading(true);
 
     try {
-      // Use the dedicated active-users endpoint
-      const res = await fetch(`${API_BASE}/active-users`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      
-      const data = await res.json();
-      
-      if (!Array.isArray(data)) {
-        throw new Error("Unexpected response format");
-      }
+      // ✅ Fetch first batch immediately
+      const res = await fetch(`${API_BASE}/active-users?skip=0&limit=${BATCH_SIZE}`, { headers: { "Cache-Control": "no-cache" } });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
-      console.log("=== VERIFIED CAMPERS DEBUG ===");
-      console.log("Total verified users fetched:", data.length);
-      console.log("Verified users:", data.map((u: any) => `${u.first_name} (${u.phone_number})`));
-      console.log("=== END DEBUG ===");
-      
-      setUsers(data);
-      setFilteredUsers(data);
-    } catch (err: any) {
-      console.error("Error fetching verified users:", err.message);
-    } finally {
+      const firstData: UserData[] = await res.json();
+      setUsers(firstData);
+      setFilteredUsers(firstData);
+      setCurrentPage(1);
       setLoading(false);
       setRefreshing(false);
+
+      if (firstData.length < BATCH_SIZE) return;
+
+      // 🔄 Stream the rest in the background
+      setLoadingMore(true);
+      let skip = BATCH_SIZE;
+      let all = [...firstData];
+
+      while (true) {
+        setFetchProgress(`Loading more... ${all.length} users so far`);
+        const r = await fetch(`${API_BASE}/active-users?skip=${skip}&limit=${BATCH_SIZE}`, { headers: { "Cache-Control": "no-cache" } });
+        if (!r.ok) break;
+        const batch: UserData[] = await r.json();
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        all = [...all, ...batch];
+        setUsers(all);
+        setFilteredUsers(prev => searchTerm ? prev : all);
+        if (batch.length < BATCH_SIZE) break;
+        skip += BATCH_SIZE;
+      }
+
+      console.log("Total verified users fetched:", all.length);
+    } catch (err: any) {
+      console.error("Error fetching verified users:", err.message);
+      setLoading(false);
+      setRefreshing(false);
+    } finally {
+      setLoadingMore(false);
+      setFetchProgress("");
     }
   };
 
-  useEffect(() => {
-    fetchVerifiedUsers();
-  }, []);
+  useEffect(() => { fetchVerifiedUsers(); }, []);
 
   // Search filter
   useEffect(() => {
@@ -105,14 +109,10 @@ const VerifiedCampers: React.FC = () => {
   }, [searchTerm, users]);
 
   // Pagination
-  const indexOfLastUser = currentPage * entriesPerPage;
-  const indexOfFirstUser = indexOfLastUser - entriesPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
-
-  const handleRefresh = () => {
-    fetchVerifiedUsers(true);
-  };
+  const indexOfLast  = currentPage * entriesPerPage;
+  const indexOfFirst = indexOfLast - entriesPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirst, indexOfLast);
+  const totalPages   = Math.ceil(filteredUsers.length / entriesPerPage);
 
   if (loading) {
     return (
@@ -121,6 +121,9 @@ const VerifiedCampers: React.FC = () => {
           <div className="text-center">
             <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"></div>
             <p className="text-gray-600 text-lg">Loading verified campers...</p>
+            {fetchProgress && (
+              <p className="text-green-600 text-sm mt-2 font-medium">{fetchProgress}</p>
+            )}
           </div>
         </section>
       </div>
@@ -130,6 +133,7 @@ const VerifiedCampers: React.FC = () => {
   return (
     <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
       <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
+
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -138,19 +142,16 @@ const VerifiedCampers: React.FC = () => {
                 <CheckCircle className="w-10 h-10 text-green-600" />
                 Verified Campers
               </h1>
-              <p className="text-gray-600">
-                All activated and verified users for Easter Camp Meeting 2026
-              </p>
+              <p className="text-gray-600">All activated and verified users for Easter Camp Meeting 2026</p>
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={handleRefresh}
+                onClick={() => fetchVerifiedUsers(true)}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Refresh verified users list"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-                {refreshing ? 'Refreshing...' : 'Refresh'}
+                <RefreshCw className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
+                {refreshing ? (fetchProgress || "Refreshing...") : "Refresh"}
               </button>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Verified Users</p>
@@ -160,10 +161,10 @@ const VerifiedCampers: React.FC = () => {
           </div>
         </div>
 
-        {/* Search & Filter Bar */}
+        {/* Search & entries per page */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search verified campers..."
@@ -172,29 +173,34 @@ const VerifiedCampers: React.FC = () => {
               className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
-          
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Show:</label>
             <select
               value={entriesPerPage}
-              onChange={(e) => setEntriesPerPage(Number(e.target.value))}
+              onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
-              <option value={5}>5</option>
               <option value={10}>10</option>
               <option value={20}>20</option>
+              <option value={30}>30</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
             </select>
           </div>
         </div>
 
-        {/* Results Info */}
-        <div className="mb-4 text-sm text-gray-600">
-          Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} verified users
+        {/* Results info */}
+        <div className="mb-4 text-sm text-gray-600 flex items-center gap-3">
+          <span>Showing {filteredUsers.length === 0 ? 0 : indexOfFirst + 1} to {Math.min(indexOfLast, filteredUsers.length)} of {filteredUsers.length} verified users</span>
+          {loadingMore && (
+            <span className="flex items-center gap-2 text-green-600 font-medium">
+              <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+              {fetchProgress || "Loading more..."}
+            </span>
+          )}
         </div>
 
-        {/* User Table */}
+        {/* Table */}
         <div className="overflow-x-auto rounded-lg border-2 border-gray-200 shadow-sm">
           <table className="w-full">
             <thead>
@@ -206,17 +212,14 @@ const VerifiedCampers: React.FC = () => {
                 <th className="p-4 text-left font-semibold">Hall</th>
                 <th className="p-4 text-left font-semibold">Floor</th>
                 <th className="p-4 text-left font-semibold">Bed</th>
-                {/* <th className="p-4 text-left font-semibold">Assembly</th> */}
               </tr>
             </thead>
             <tbody>
               {currentUsers.length > 0 ? (
                 currentUsers.map((user, idx) => (
-                  <tr 
-                    key={user.phone_number || user.id} 
-                    className={`${
-                      idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-green-50 transition-colors border-b border-gray-200`}
+                  <tr
+                    key={user.phone_number || user.id}
+                    className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-green-50 transition-colors border-b border-gray-200`}
                   >
                     <td className="p-4">
                       <div className="flex items-center justify-center">
@@ -260,24 +263,20 @@ const VerifiedCampers: React.FC = () => {
                     <td className="p-4 text-gray-700 font-semibold">
                       {getValue(user, "bed_number")}
                     </td>
-                    {/* <td className="p-4 text-gray-700 text-sm">
-                      {getValue(user, "local_assembly")}
-                    </td> */}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="text-center p-8">
+                  <td colSpan={7} className="text-center p-8">
                     <div className="flex flex-col items-center justify-center text-gray-400">
-                      <CheckCircle className="w-16 h-16 mb-4" />
+                      <CheckCircle className="w-16 h-16 mb-4 text-green-300" />
                       <p className="text-lg font-medium">No verified campers found</p>
                       <p className="text-sm">Users need to be activated first</p>
                       <button
-                        onClick={handleRefresh}
+                        onClick={() => fetchVerifiedUsers(true)}
                         className="mt-4 flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
                       >
-                        <RefreshCw className="w-4 h-4" />
-                        Refresh List
+                        <RefreshCw className="w-4 h-4" /> Refresh List
                       </button>
                     </div>
                   </td>
@@ -289,7 +288,7 @@ const VerifiedCampers: React.FC = () => {
 
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm">
             Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages || 1}</span>
           </p>
           <div className="flex gap-2">
@@ -309,6 +308,7 @@ const VerifiedCampers: React.FC = () => {
             </button>
           </div>
         </div>
+
       </section>
     </div>
   );

@@ -73,72 +73,70 @@ const AllCampers: React.FC = () => {
     }
   };
 
-  // ── Core fetch: loops through all pages until we get everything ──────────
-  const fetchAllUsers = async (): Promise<UserData[]> => {
-    const allUsers: UserData[] = [];
-    let skip = 0;
-    let keepGoing = true;
-
-    while (keepGoing) {
-      setFetchProgress(`Loading... ${allUsers.length} users fetched so far`);
-
-      const res = await fetch(
-        `${API_BASE}/users?skip=${skip}&limit=${BATCH_SIZE}`,
-        { headers: { 'Cache-Control': 'no-cache' } }
-      );
-
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-      const batch: UserData[] = await res.json();
-
-      if (!Array.isArray(batch)) throw new Error("Unexpected response format");
-
-      allUsers.push(...batch);
-
-      // If the batch is smaller than BATCH_SIZE, we've reached the end
-      if (batch.length < BATCH_SIZE) {
-        keepGoing = false;
-      } else {
-        skip += BATCH_SIZE;
-      }
-    }
-
-    setFetchProgress("");
-    return allUsers;
-  };
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchUsers = async (showRefreshing = false) => {
-    if (showRefreshing) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+    if (showRefreshing) setRefreshing(true);
+    else setLoading(true);
 
     try {
-      const [allUsers, activeUsersRes] = await Promise.all([
-        fetchAllUsers(),
-        fetch(`${API_BASE}/active-users`, { headers: { 'Cache-Control': 'no-cache' } })
+      // Fetch first batch + active users in parallel for fast first paint
+      const [firstBatch, activeUsersRes] = await Promise.all([
+        fetch(`${API_BASE}/users?skip=0&limit=${BATCH_SIZE}`, { headers: { 'Cache-Control': 'no-cache' } }),
+        fetch(`${API_BASE}/active-users`, { headers: { 'Cache-Control': 'no-cache' } }),
       ]);
 
+      if (!firstBatch.ok) throw new Error(`HTTP error! status: ${firstBatch.status}`);
+
+      const firstData: UserData[] = await firstBatch.json();
       const activeUsers = activeUsersRes.ok ? await activeUsersRes.json() : [];
       const activePhones = new Set(activeUsers.map((u: any) => u.phone_number));
 
-      console.log("Total registered users:", allUsers.length);
-      console.log("Total verified users:", activeUsers.length);
+      const withStatus = (batch: any[]) =>
+        batch.map(u => ({ ...u, is_active: activePhones.has(u.phone_number) }));
 
-      const usersWithStatus = allUsers.map((user: any) => ({
-        ...user,
-        is_active: activePhones.has(user.phone_number),
-      }));
+      // ✅ Show first batch immediately — user sees data right away
+      const initial = withStatus(firstData);
+      setUsers(initial);
+      setFilteredUsers(initial);
+      setLoading(false);
+      setRefreshing(false);
 
-      setUsers(usersWithStatus);
-      setFilteredUsers(usersWithStatus);
+      // Nothing more to fetch
+      if (firstData.length < BATCH_SIZE) return;
+
+      // 🔄 Stream the rest in the background
+      setLoadingMore(true);
+      let skip = BATCH_SIZE;
+      let allUsers = [...firstData];
+
+      while (true) {
+        setFetchProgress(`Loading more... ${allUsers.length} users so far`);
+        const res = await fetch(`${API_BASE}/users?skip=${skip}&limit=${BATCH_SIZE}`, { headers: { 'Cache-Control': 'no-cache' } });
+        if (!res.ok) break;
+        const batch: UserData[] = await res.json();
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        allUsers = [...allUsers, ...batch];
+
+        // Update UI after every batch so user sees count growing
+        const updated = withStatus(allUsers);
+        setUsers(updated);
+        setFilteredUsers(prev => {
+          // Only update if no search is active, otherwise preserve search results
+          if (searchTerm) return prev;
+          return updated;
+        });
+
+        if (batch.length < BATCH_SIZE) break;
+        skip += BATCH_SIZE;
+      }
     } catch (err: any) {
       console.error("Error fetching users:", err.message);
       showToast("Failed to fetch users.", 'error');
-    } finally {
       setLoading(false);
       setRefreshing(false);
+    } finally {
+      setLoadingMore(false);
       setFetchProgress("");
     }
   };
@@ -325,8 +323,14 @@ const AllCampers: React.FC = () => {
         </div>
 
         {/* Results Info */}
-        <div className="mb-4 text-sm text-gray-600">
-          Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
+        <div className="mb-4 text-sm text-gray-600 flex items-center gap-3">
+          <span>Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users</span>
+          {loadingMore && (
+            <span className="flex items-center gap-2 text-green-600 font-medium">
+              <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+              {fetchProgress || "Loading more..."}
+            </span>
+          )}
         </div>
 
         {/* Table */}
