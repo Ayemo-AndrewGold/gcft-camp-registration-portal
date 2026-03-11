@@ -4,7 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Search, CheckCircle, User, Phone, Home, Layers, RefreshCw } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 50;
+
+let _cachedVerified: UserData[] | null = null;
+let _isFetchingVerified = false;
 
 interface UserData {
   id?: number;
@@ -23,14 +26,77 @@ interface UserData {
 }
 
 const VerifiedCampers: React.FC = () => {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
+  const [users, setUsers] = useState<UserData[]>(_cachedVerified || []);
+  const [filteredUsers, setFilteredUsers] = useState<UserData[]>(_cachedVerified || []);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(!_cachedVerified);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [fetchProgress, setFetchProgress] = useState<string>("");
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetchVerifiedUsers = async (showRefreshing = false) => {
+    // ✅ Return cached data instantly if available
+    if (_cachedVerified && !showRefreshing) {
+      setUsers(_cachedVerified);
+      setFilteredUsers(_cachedVerified);
+      setLoading(false);
+      return;
+    }
+
+    if (showRefreshing) {
+      setRefreshing(true);
+      _cachedVerified = null;
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/active-users?skip=0&limit=${BATCH_SIZE}`, { headers: { "Cache-Control": "no-cache" } });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      const firstData: UserData[] = await res.json();
+      _cachedVerified = firstData;
+      setUsers(firstData);
+      setFilteredUsers(firstData);
+      setCurrentPage(1);
+      setLoading(false);
+      setRefreshing(false);
+
+      if (firstData.length < BATCH_SIZE) return;
+
+      if (_isFetchingVerified) return;
+      _isFetchingVerified = true;
+      setLoadingMore(true);
+      let skip = BATCH_SIZE;
+      let all = [...firstData];
+
+      while (true) {
+        setFetchProgress(`Loading more... ${all.length} users so far`);
+        const r = await fetch(`${API_BASE}/active-users?skip=${skip}&limit=${BATCH_SIZE}`, { headers: { "Cache-Control": "no-cache" } });
+        if (!r.ok) break;
+        const batch: UserData[] = await r.json();
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        all = [...all, ...batch];
+        _cachedVerified = all;
+        setUsers(all);
+        setFilteredUsers(prev => searchTerm ? prev : all);
+        if (batch.length < BATCH_SIZE) break;
+        skip += BATCH_SIZE;
+      }
+
+      console.log("Total verified users fetched:", all.length);
+    } catch (err: any) {
+      console.error("Error fetching verified users:", err.message);
+      setLoading(false);
+      setRefreshing(false);
+    } finally {
+      _isFetchingVerified = false;
+      setLoadingMore(false);
+      setFetchProgress("");
+    }
+  };
 
   const getValue = (u: UserData, ...keys: string[]): string => {
     for (let k of keys) {
@@ -44,55 +110,6 @@ const VerifiedCampers: React.FC = () => {
       }
     }
     return "—";
-  };
-
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const fetchVerifiedUsers = async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true);
-    else setLoading(true);
-
-    try {
-      // ✅ Fetch first batch immediately
-      const res = await fetch(`${API_BASE}/active-users?skip=0&limit=${BATCH_SIZE}`, { headers: { "Cache-Control": "no-cache" } });
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-      const firstData: UserData[] = await res.json();
-      setUsers(firstData);
-      setFilteredUsers(firstData);
-      setCurrentPage(1);
-      setLoading(false);
-      setRefreshing(false);
-
-      if (firstData.length < BATCH_SIZE) return;
-
-      // 🔄 Stream the rest in the background
-      setLoadingMore(true);
-      let skip = BATCH_SIZE;
-      let all = [...firstData];
-
-      while (true) {
-        setFetchProgress(`Loading more... ${all.length} users so far`);
-        const r = await fetch(`${API_BASE}/active-users?skip=${skip}&limit=${BATCH_SIZE}`, { headers: { "Cache-Control": "no-cache" } });
-        if (!r.ok) break;
-        const batch: UserData[] = await r.json();
-        if (!Array.isArray(batch) || batch.length === 0) break;
-        all = [...all, ...batch];
-        setUsers(all);
-        setFilteredUsers(prev => searchTerm ? prev : all);
-        if (batch.length < BATCH_SIZE) break;
-        skip += BATCH_SIZE;
-      }
-
-      console.log("Total verified users fetched:", all.length);
-    } catch (err: any) {
-      console.error("Error fetching verified users:", err.message);
-      setLoading(false);
-      setRefreshing(false);
-    } finally {
-      setLoadingMore(false);
-      setFetchProgress("");
-    }
   };
 
   useEffect(() => { fetchVerifiedUsers(); }, []);
@@ -131,7 +148,7 @@ const VerifiedCampers: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t font-[lexend] from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
+    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
       <section className="bg-white min-h-screen rounded-lg shadow-md p-6 lg:p-8">
 
         {/* Header */}

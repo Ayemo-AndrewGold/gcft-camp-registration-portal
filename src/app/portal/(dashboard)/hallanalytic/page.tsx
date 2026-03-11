@@ -273,7 +273,7 @@ export default function HallAnalytics() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 py-6 px-4">
+   <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
       <div className="max-w-[1600px] mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-slate-200">

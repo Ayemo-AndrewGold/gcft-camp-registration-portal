@@ -475,7 +475,7 @@ const MinisterMealTracker: React.FC = () => {
   ];
 
   return (
-    <div className="bg-gradient-to-t from-green-50 via-white to-green-300 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
+    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
       <Toast toast={toast} />
 
       <section className="bg-white min-h-screen rounded-lg shadow-md p-2 lg:p-6">

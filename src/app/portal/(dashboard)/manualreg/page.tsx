@@ -5,7 +5,10 @@ import { Search, AlertCircle, CheckCircle, XCircle, RefreshCw, Calendar, Clock, 
 import Webcam from "react-webcam";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 50;
+
+let _cachedManual: UserData[] | null = null;
+let _isFetchingManual = false;
 
 interface UserData {
   id?: number;
@@ -39,8 +42,8 @@ interface NewUserRegistration {
 }
 
 const ManualPage: React.FC = () => {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
+  const [users, setUsers] = useState<UserData[]>(_cachedManual || []);
+  const [filteredUsers, setFilteredUsers] = useState<UserData[]>(_cachedManual || []);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -49,7 +52,7 @@ const ManualPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [reallocateMode, setReallocateMode] = useState<'reassign' | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(!_cachedManual);
   const [processing, setProcessing] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [fetchProgress, setFetchProgress] = useState<string>("");
@@ -156,11 +159,22 @@ const ManualPage: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchUsers = async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true);
-    else setLoading(true);
+    // ✅ Return cached data instantly
+    if (_cachedManual && !showRefreshing) {
+      setUsers(_cachedManual);
+      setFilteredUsers(_cachedManual);
+      setLoading(false);
+      return;
+    }
+
+    if (showRefreshing) {
+      setRefreshing(true);
+      _cachedManual = null;
+    } else {
+      setLoading(true);
+    }
 
     try {
-      // ✅ Fetch first batch + active users in parallel for fast first paint
       const [firstRes, activeUsersRes] = await Promise.all([
         fetch(`${API_BASE}/users?skip=0&limit=${BATCH_SIZE}`, { headers: { 'Cache-Control': 'no-cache' } }),
         fetch(`${API_BASE}/active-users`, { headers: { 'Cache-Control': 'no-cache' } }),
@@ -176,6 +190,7 @@ const ManualPage: React.FC = () => {
         batch.filter((u: any) => !activePhones.has(u.phone_number)).map((u: any) => ({ ...u, is_active: false }));
 
       const firstUnverified = toUnverified(firstData);
+      _cachedManual = firstUnverified;
       setUsers(firstUnverified);
       setFilteredUsers(firstUnverified);
       setCurrentPage(1);
@@ -184,7 +199,8 @@ const ManualPage: React.FC = () => {
 
       if (firstData.length < BATCH_SIZE) return;
 
-      // 🔄 Stream rest in background
+      if (_isFetchingManual) return;
+      _isFetchingManual = true;
       setLoadingMore(true);
       let skip = BATCH_SIZE;
       let allRaw = [...firstData];
@@ -197,6 +213,7 @@ const ManualPage: React.FC = () => {
         if (!Array.isArray(batch) || batch.length === 0) break;
         allRaw = [...allRaw, ...batch];
         const allUnverified = toUnverified(allRaw);
+        _cachedManual = allUnverified;
         setUsers(allUnverified);
         setFilteredUsers(prev => searchTerm ? prev : allUnverified);
         if (batch.length < BATCH_SIZE) break;
@@ -208,6 +225,7 @@ const ManualPage: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     } finally {
+      _isFetchingManual = false;
       setLoadingMore(false);
       setFetchProgress("");
     }
@@ -388,7 +406,7 @@ const ManualPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-b from-green-50 via-white to-green-100 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
+    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[90vw] max-w-lg">
@@ -427,7 +445,7 @@ const ManualPage: React.FC = () => {
         </div>
       )}
 
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 lg:p-3">
+      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-3 lg:p-3">
         {/* Header */}
         <div className="mb-8 pb-6 border-b-2 border-green-500">
           <div className="flex items-center justify-between flex-wrap gap-4">

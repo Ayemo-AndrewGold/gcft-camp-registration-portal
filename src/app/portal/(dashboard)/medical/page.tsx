@@ -4,7 +4,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { Search, AlertCircle, CheckCircle, XCircle, RefreshCw, Printer, Download, Heart } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 50;
+
+let _cachedMedical: MedicalRecord[] | null = null;
+let _isFetchingMedical = false;
 
 interface MedicalRecord {
   user_name: string;
@@ -13,14 +16,15 @@ interface MedicalRecord {
 }
 
 const Medical: React.FC = () => {
-  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
-  const [filteredRecords, setFilteredRecords] = useState<MedicalRecord[]>([]);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(_cachedMedical || []);
+  const [filteredRecords, setFilteredRecords] = useState<MedicalRecord[]>(_cachedMedical || []);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(!_cachedMedical);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [fetchProgress, setFetchProgress] = useState<string>("");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -29,14 +33,23 @@ const Medical: React.FC = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const [loadingMore, setLoadingMore] = useState(false);
-
   const fetchMedicalRecords = async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true);
-    else setLoading(true);
+    // ✅ Return cached data instantly
+    if (_cachedMedical && !showRefreshing) {
+      setMedicalRecords(_cachedMedical);
+      setFilteredRecords(_cachedMedical);
+      setLoading(false);
+      return;
+    }
+
+    if (showRefreshing) {
+      setRefreshing(true);
+      _cachedMedical = null;
+    } else {
+      setLoading(true);
+    }
 
     try {
-      // ✅ Show first batch immediately
       const res = await fetch(
         `${API_BASE}/analytics/users-medical-conditions?skip=0&limit=${BATCH_SIZE}`,
         { headers: { "Cache-Control": "no-cache" } }
@@ -44,6 +57,7 @@ const Medical: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const firstData: MedicalRecord[] = await res.json();
 
+      _cachedMedical = firstData;
       setMedicalRecords(firstData);
       setFilteredRecords(firstData);
       setCurrentPage(1);
@@ -53,7 +67,8 @@ const Medical: React.FC = () => {
 
       if (firstData.length < BATCH_SIZE) return;
 
-      // 🔄 Stream remaining batches in the background
+      if (_isFetchingMedical) return;
+      _isFetchingMedical = true;
       setLoadingMore(true);
       let skip = BATCH_SIZE;
       let all = [...firstData];
@@ -68,6 +83,7 @@ const Medical: React.FC = () => {
         const batch: MedicalRecord[] = await r.json();
         if (!Array.isArray(batch) || batch.length === 0) break;
         all = [...all, ...batch];
+        _cachedMedical = all;
         setMedicalRecords(all);
         setFilteredRecords(prev => searchTerm ? prev : all);
         if (batch.length < BATCH_SIZE) break;
@@ -81,6 +97,7 @@ const Medical: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     } finally {
+      _isFetchingMedical = false;
       setLoadingMore(false);
       setFetchProgress("");
     }
@@ -205,7 +222,7 @@ const Medical: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-t from-green-50 via-white to-green-300 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
+    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[90vw] max-w-lg">

@@ -4,7 +4,11 @@ import React, { useState, useEffect } from "react";
 import { Search, X, Edit2, Trash2, User, Phone, Home, Layers, CheckCircle, XCircle, RefreshCw, Calendar } from "lucide-react";
 
 const API_BASE = "https://gcft-camp.onrender.com/api/v1";
-const BATCH_SIZE = 100; // how many to fetch per request
+const BATCH_SIZE = 50;
+
+// ── Module-level cache — survives navigation, cleared only on manual refresh ──
+let _cachedUsers: UserData[] | null = null;
+let _isFetchingInBackground = false;
 
 interface UserData {
   id?: number;
@@ -34,7 +38,7 @@ const AllCampers: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
   const [deletingUsers, setDeletingUsers] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(!_cachedUsers);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [fetchProgress, setFetchProgress] = useState<string>("");
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -76,11 +80,22 @@ const AllCampers: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchUsers = async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true);
-    else setLoading(true);
+    // ✅ If cached and not a manual refresh — show instantly, no loading at all
+    if (_cachedUsers && !showRefreshing) {
+      setUsers(_cachedUsers);
+      setFilteredUsers(_cachedUsers);
+      setLoading(false);
+      return;
+    }
+
+    if (showRefreshing) {
+      setRefreshing(true);
+      _cachedUsers = null; // clear cache on manual refresh
+    } else {
+      setLoading(true);
+    }
 
     try {
-      // Fetch first batch + active users in parallel for fast first paint
       const [firstBatch, activeUsersRes] = await Promise.all([
         fetch(`${API_BASE}/users?skip=0&limit=${BATCH_SIZE}`, { headers: { 'Cache-Control': 'no-cache' } }),
         fetch(`${API_BASE}/active-users`, { headers: { 'Cache-Control': 'no-cache' } }),
@@ -95,38 +110,34 @@ const AllCampers: React.FC = () => {
       const withStatus = (batch: any[]) =>
         batch.map(u => ({ ...u, is_active: activePhones.has(u.phone_number) }));
 
-      // ✅ Show first batch immediately — user sees data right away
+      // Show first batch immediately
       const initial = withStatus(firstData);
+      _cachedUsers = initial;
       setUsers(initial);
       setFilteredUsers(initial);
       setLoading(false);
       setRefreshing(false);
 
-      // Nothing more to fetch
       if (firstData.length < BATCH_SIZE) return;
 
       // 🔄 Stream the rest in the background
+      if (_isFetchingInBackground) return; // prevent duplicate background fetches
+      _isFetchingInBackground = true;
       setLoadingMore(true);
       let skip = BATCH_SIZE;
-      let allUsers = [...firstData];
+      let allRaw = [...firstData];
 
       while (true) {
-        setFetchProgress(`Loading more... ${allUsers.length} users so far`);
+        setFetchProgress(`Loading more... ${allRaw.length} users so far`);
         const res = await fetch(`${API_BASE}/users?skip=${skip}&limit=${BATCH_SIZE}`, { headers: { 'Cache-Control': 'no-cache' } });
         if (!res.ok) break;
         const batch: UserData[] = await res.json();
         if (!Array.isArray(batch) || batch.length === 0) break;
-        allUsers = [...allUsers, ...batch];
-
-        // Update UI after every batch so user sees count growing
-        const updated = withStatus(allUsers);
+        allRaw = [...allRaw, ...batch];
+        const updated = withStatus(allRaw);
+        _cachedUsers = updated; // keep cache up to date as batches arrive
         setUsers(updated);
-        setFilteredUsers(prev => {
-          // Only update if no search is active, otherwise preserve search results
-          if (searchTerm) return prev;
-          return updated;
-        });
-
+        setFilteredUsers(prev => searchTerm ? prev : updated);
         if (batch.length < BATCH_SIZE) break;
         skip += BATCH_SIZE;
       }
@@ -136,6 +147,7 @@ const AllCampers: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     } finally {
+      _isFetchingInBackground = false;
       setLoadingMore(false);
       setFetchProgress("");
     }
