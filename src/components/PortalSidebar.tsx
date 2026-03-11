@@ -148,7 +148,7 @@ export default function PortalSidebar() {
 
         {/* ── Scrollable nav area ── */}
         <nav className='flex flex-col flex-1 overflow-y-auto px-4 pb-4 mt-2 gap-1
-          scrollbar-thin scrollbar-thumb-green-400 scrollbar-track-transparent'>
+          [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'>
 
           {!isCollapsed && (
             <p className={`font-medium mb-3 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
