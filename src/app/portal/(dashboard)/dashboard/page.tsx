@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, User, Phone, Home, Calendar, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, User, Phone, Home, Calendar, AlertCircle, Heart } from "lucide-react";
 
 interface UserData {
   id: number;
@@ -22,6 +22,7 @@ interface UserData {
   extra_beds?: number[];
   is_active?: boolean;
   profile_picture_url?: string;
+  medical_issues?: string | null;
 }
 
 const Portal: React.FC = () => {
@@ -316,6 +317,19 @@ const Portal: React.FC = () => {
                 <div>
                   <p className="text-sm text-gray-500">Arrival Date</p>
                   <p className="font-semibold text-gray-800">{userData.arrival_date}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                {/* <Heart className="w-5 h-5 text-red-400 mt-1" /> */}
+                <div className="w-5 h-5 text-gray-500 mt-1 flex items-center justify-center">
+                  <span className="text-sm">🩺</span>  {/* ← stethoscope emoji */}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Medical Issues</p>
+                  <p className="font-semibold text-gray-800">
+                    {userData.medical_issues || "None"}
+                  </p>
                 </div>
               </div>
 
