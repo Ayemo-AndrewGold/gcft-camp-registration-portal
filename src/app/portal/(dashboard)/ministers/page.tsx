@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, X, CheckCircle, XCircle, AlertCircle, UserPlus, RefreshCw, Camera } from "lucide-react";
 import Webcam from "react-webcam";
 
@@ -24,6 +24,23 @@ interface MinisterReg {
   hall_name?: string;
   floor_id?: string;
   bed_number?: string;
+}
+
+interface Hall {
+  id: number;
+  hall_name: string;
+  gender: string;
+  no_floors: number;
+}
+
+interface Floor {
+  floor_id: string;
+  floor_no: number;
+  hall_id: number;
+  categories: number[];
+  age_ranges: string[];
+  no_beds: number;
+  status: string;
 }
 
 const countryStates: Record<string, string[]> = {
@@ -52,6 +69,7 @@ const MinisterRegForm: React.FC = () => {
   const [formData, setFormData] = useState<Partial<MinisterReg>>({
     arrival_date: "2026-04-02",
     country: "Nigeria",
+    age_range: "46-55",
   });
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl]         = useState<string>("");
@@ -59,8 +77,56 @@ const MinisterRegForm: React.FC = () => {
   const [isCameraOpen, setIsCameraOpen]     = useState(false);
   const [toast, setToast]                   = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
+  // Hall & Floor state
+  const [halls, setHalls]               = useState<Hall[]>([]);
+  const [floors, setFloors]             = useState<Floor[]>([]);
+  const [hallsLoading, setHallsLoading] = useState(false);
+  const [floorsLoading, setFloorsLoading] = useState(false);
+  const [selectedHallName, setSelectedHallName] = useState<string>("");
+
   const webcamRef    = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch all halls on mount
+  useEffect(() => {
+    const fetchHalls = async () => {
+      setHallsLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/hall/`);
+        if (!res.ok) throw new Error("Failed to fetch halls");
+        const data: Hall[] = await res.json();
+        setHalls(data);
+      } catch (err) {
+        showToast("Could not load halls. Please refresh.", "error");
+      } finally {
+        setHallsLoading(false);
+      }
+    };
+    fetchHalls();
+  }, []);
+
+  // Fetch floors when a hall is selected
+  useEffect(() => {
+    if (!selectedHallName) {
+      setFloors([]);
+      return;
+    }
+    const fetchFloors = async () => {
+      setFloorsLoading(true);
+      setFloors([]);
+      try {
+        const res = await fetch(`${API_BASE}/hall/${encodeURIComponent(selectedHallName)}/floors`);
+        if (!res.ok) throw new Error("Failed to fetch floors");
+        const data: Floor[] = await res.json();
+        setFloors(data);
+      } catch (err) {
+        showToast("Could not load floors for selected hall.", "error");
+      } finally {
+        setFloorsLoading(false);
+      }
+    };
+    fetchFloors();
+  }, [selectedHallName]);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -70,14 +136,14 @@ const MinisterRegForm: React.FC = () => {
   const handleFieldChange = (field: string, value: string) => {
     let updated: Partial<MinisterReg> = { ...formData, [field]: value };
 
-    // Auto-fill gender & marital status when category is selected
     if (field === "category") {
       const map: Record<string, { gender: string; marital_status: string }> = {
-        "Minister":  { gender: "Male",   marital_status: "Married" },
-        "Elder":     { gender: "Male",   marital_status: "Married" },
-        "Deacon":    { gender: "Male",   marital_status: "Married" },
-        "Trustee":   { gender: "Male",   marital_status: "Married" },
-        "Deaconess": { gender: "Female", marital_status: "Married" },
+        "Minister":       { gender: "Male",   marital_status: "Married" },
+        "Elder":          { gender: "Male",   marital_status: "Married" },
+        "Deacon":         { gender: "Male",   marital_status: "Married" },
+        "Trustee":        { gender: "Male",   marital_status: "Married" },
+        "Deaconess":      { gender: "Female", marital_status: "Married" },
+        "Pastor's Wife":  { gender: "Female", marital_status: "Married" },  
       };
       if (map[value]) updated = { ...updated, ...map[value] };
     }
@@ -85,6 +151,17 @@ const MinisterRegForm: React.FC = () => {
     if (field === "country") updated = { ...updated, state: "" };
 
     setFormData(updated);
+  };
+
+  // Handle hall selection — store hall_name in formData, trigger floor fetch
+  const handleHallChange = (hallName: string) => {
+    setSelectedHallName(hallName);
+    setFormData(prev => ({ ...prev, hall_name: hallName, floor_id: "" }));
+  };
+
+  // Handle floor selection — store floor_id (UUID) in formData
+  const handleFloorChange = (floorId: string) => {
+    setFormData(prev => ({ ...prev, floor_id: floorId }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,7 +218,6 @@ const MinisterRegForm: React.FC = () => {
       }
       fd.append("file", file);
 
-      // Required
       fd.append("phone_number",   formData.phone_number   || "");
       fd.append("first_name",     formData.first_name     || "");
       fd.append("gender",         formData.gender         || "");
@@ -151,7 +227,6 @@ const MinisterRegForm: React.FC = () => {
       fd.append("state",          formData.state          || "");
       fd.append("arrival_date",   formData.arrival_date   || "");
 
-      // Optional
       const optional: (keyof MinisterReg)[] = [
         "last_name","room_number","category","medical_issues",
         "local_assembly","local_assembly_address","hall_name","floor_id","bed_number",
@@ -179,6 +254,8 @@ const MinisterRegForm: React.FC = () => {
       setFormData({ arrival_date: "2026-04-02", country: "Nigeria" });
       setProfilePicture(null);
       setPreviewUrl("");
+      setSelectedHallName("");
+      setFloors([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
       console.error("Registration error:", err);
@@ -192,6 +269,8 @@ const MinisterRegForm: React.FC = () => {
     setFormData({ arrival_date: "2026-04-02", country: "Nigeria" });
     setProfilePicture(null);
     setPreviewUrl("");
+    setSelectedHallName("");
+    setFloors([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -323,15 +402,16 @@ const MinisterRegForm: React.FC = () => {
           {/* Category */}
           <div>
             <label className={labelCls}>Category</label>
-            <select value={formData.category || ""} onChange={e => handleFieldChange("category", e.target.value)}
-              className={`${inputCls} cursor-pointer`}>
-              <option value="">Select category</option>
-              <option value="Minister">Minister</option>
-              <option value="Elder">Elder</option>
-              <option value="Deacon">Deacon</option>
-              <option value="Deaconess">Deaconess</option>
-              <option value="Trustee">Trustee</option>
-            </select>
+              <select value={formData.category || ""} onChange={e => handleFieldChange("category", e.target.value)}
+                className={`${inputCls} cursor-pointer`}>
+                <option value="">Select category</option>
+                <option value="Minister">Pastor</option>
+                <option value="Pastor's Wife">Pastor's Wife</option>  {/* 👈 unique value now */}
+                <option value="Minister">Minister</option>
+                <option value="Elder">Elder</option>
+                <option value="Deacon">Deacon</option>
+                <option value="Trustee">Trustee</option>
+              </select>
           </div>
 
           {/* Gender + Marital Status */}
@@ -403,32 +483,64 @@ const MinisterRegForm: React.FC = () => {
 
           {/* ── Optional Fields ── */}
           <div className="pt-4 border-t-2 border-dashed border-gray-200">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Optional Fields</p>
-
             <div className="space-y-4">
-              {/* Room + Hall */}
+
+              {/* Hall + Floor — API-driven */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Hall Name</label>
+                  {hallsLoading ? (
+                    <div className={`${inputCls} flex items-center gap-2 text-gray-400 bg-gray-100`}>
+                      <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      Loading halls...
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedHallName}
+                      onChange={e => handleHallChange(e.target.value)}
+                      className={`${inputCls} cursor-pointer`}
+                    >
+                      <option value="">Select hall</option>
+                      {halls.map(h => (
+                        <option key={h.id} value={h.hall_name}>{h.hall_name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>Floor</label>
+                  {floorsLoading ? (
+                    <div className={`${inputCls} flex items-center gap-2 text-gray-400 bg-gray-100`}>
+                      <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      Loading floors...
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.floor_id || ""}
+                      onChange={e => handleFloorChange(e.target.value)}
+                      disabled={!selectedHallName || floors.length === 0}
+                      className={`${inputCls} cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed`}
+                    >
+                      <option value="">
+                        {!selectedHallName ? "Select a hall first" : floors.length === 0 ? "No floors available" : "Select floor"}
+                      </option>
+                      {floors.map(f => (
+                        <option key={f.floor_id} value={f.floor_id}>
+                          Floor {f.floor_no} — {f.no_beds} beds ({f.status})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Room + Bed — manual */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Room Number</label>
                   <input type="text" value={formData.room_number || ""}
                     onChange={e => handleFieldChange("room_number", e.target.value)}
                     placeholder="e.g. 101" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Hall Name</label>
-                  <input type="text" value={formData.hall_name || ""}
-                    onChange={e => handleFieldChange("hall_name", e.target.value)}
-                    placeholder="e.g. Grace Hall" className={inputCls} />
-                </div>
-              </div>
-
-              {/* Floor + Bed */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Floor ID</label>
-                  <input type="text" value={formData.floor_id || ""}
-                    onChange={e => handleFieldChange("floor_id", e.target.value)}
-                    placeholder="e.g. 2" className={inputCls} />
                 </div>
                 <div>
                   <label className={labelCls}>Bed Number</label>
