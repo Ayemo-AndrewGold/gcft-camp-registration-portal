@@ -16,14 +16,13 @@ interface MinisterReg {
   state: string;
   arrival_date: string;
   last_name?: string;
-  room_number?: string;
+  bed_space?: string;
   category?: string;
   medical_issues?: string;
   local_assembly?: string;
   local_assembly_address?: string;
   hall_name?: string;
   floor_id?: string;
-  bed_number?: string;
 }
 
 interface Hall {
@@ -228,8 +227,8 @@ const MinisterRegForm: React.FC = () => {
       fd.append("arrival_date",   formData.arrival_date   || "");
 
       const optional: (keyof MinisterReg)[] = [
-        "last_name","room_number","category","medical_issues",
-        "local_assembly","local_assembly_address","hall_name","floor_id","bed_number",
+        "last_name","bed_space", "category","medical_issues",
+        "local_assembly","local_assembly_address","hall_name","floor_id",
       ];
       optional.forEach(f => { if (formData[f]) fd.append(f, formData[f] as string); });
 
@@ -534,20 +533,16 @@ const MinisterRegForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Room + Bed — manual */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Room Number</label>
-                  <input type="text" value={formData.room_number || ""}
-                    onChange={e => handleFieldChange("room_number", e.target.value)}
-                    placeholder="e.g. 101" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Bed Number</label>
-                  <input type="text" value={formData.bed_number || ""}
-                    onChange={e => handleFieldChange("bed_number", e.target.value)}
-                    placeholder="e.g. 5A" className={inputCls} />
-                </div>
+              {/* Bed Space — manual */}
+              <div>
+                <label className={labelCls}>Bed Space</label>
+                <input
+                  type="text"
+                  value={formData.bed_space || ""}
+                  onChange={e => handleFieldChange("bed_space", e.target.value)}
+                  placeholder="e.g. Room 1A, Room 1B, Room 1C"
+                  className={inputCls}
+                />
               </div>
 
               {/* Local Assembly */}
