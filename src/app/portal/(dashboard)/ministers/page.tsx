@@ -16,7 +16,7 @@ interface MinisterReg {
   state: string;
   arrival_date: string;
   last_name?: string;
-  bed_space?: string;
+  bed_number?: string;
   category?: string;
   medical_issues?: string;
   local_assembly?: string;
@@ -227,7 +227,7 @@ const MinisterRegForm: React.FC = () => {
       fd.append("arrival_date",   formData.arrival_date   || "");
 
       const optional: (keyof MinisterReg)[] = [
-        "last_name","bed_space", "category","medical_issues",
+        "last_name","bed_number", "category","medical_issues",
         "local_assembly","local_assembly_address","hall_name","floor_id",
       ];
       optional.forEach(f => { if (formData[f]) fd.append(f, formData[f] as string); });
@@ -538,8 +538,8 @@ const MinisterRegForm: React.FC = () => {
                 <label className={labelCls}>Bed Space</label>
                 <input
                   type="text"
-                  value={formData.bed_space || ""}
-                  onChange={e => handleFieldChange("bed_space", e.target.value)}
+                  value={formData.bed_number || ""}
+                  onChange={e => handleFieldChange("bed_number", e.target.value)}
                   placeholder="e.g. Room 1A, Room 1B, Room 1C"
                   className={inputCls}
                 />
