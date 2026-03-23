@@ -8,7 +8,6 @@ import { useState } from 'react';
 const Header = () => {
   const navLinks = [
     { href: '/', label: 'Home' },
-    { href: '/register', label: 'Register' },
     { href: '/donate', label: 'Donate' },
     { href: '/contactus', label: 'Contact Us' }
   ];
@@ -124,16 +123,16 @@ const Header = () => {
           ))}
           <hr className="border-gray-300" />
           <Link
-            href="/register"
+            href="/"
             onClick={closeMenu}
             className="text-base font-medium text-[#0E0E1D] hover:text-[#85C061]"
           >
             Check Status
           </Link>
           <Link
-            href="/register"
+            href="/"
             onClick={closeMenu}
-            className="text-base font-medium text-[#0E0E1D] hover:text-[#85C061]"
+            className="text-base font-medium text-[#0E0E1D] hover:text-[#85C061] cursor-not-allowed "
           >
             Book Space
           </Link>
