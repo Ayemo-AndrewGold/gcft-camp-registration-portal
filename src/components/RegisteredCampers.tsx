@@ -59,7 +59,7 @@ const RegisteredCampersCount: React.FC = () => {
               </p>
               <p className="flex items-center gap-2 rounded-lg border border-red-500 bg-red-50 px-4 py-3 text-red-700 font-semibold animate-pulse">
               <span className="inline-flex h-3 w-3 rounded-full bg-red-500 shrink-0" />
-  ⚠️ Registration Closes 21 March 2026 — Register ASAP!
+  ⚠️ Registration Closed
               </p>
             </div>
           )}

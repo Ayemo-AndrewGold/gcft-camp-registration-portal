@@ -405,7 +405,7 @@ const MinisterRegForm: React.FC = () => {
                 className={`${inputCls} cursor-pointer`}>
                 <option value="">Select category</option>
                 <option value="Minister">Pastor</option>
-                <option value="Pastor's Wife">Pastor's Wife</option>  {/* 👈 unique value now */}
+                <option value="Pastor's Wife">Pastor's Wife</option>
                 <option value="Minister">Minister</option>
                 <option value="Elder">Elder</option>
                 <option value="Deacon">Deacon</option>

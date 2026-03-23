@@ -6,6 +6,11 @@ import { FaFacebook, FaLinkedin, FaLinkedinIn, FaYoutube } from 'react-icons/fa'
 import { FaInstagram, FaX } from 'react-icons/fa6';
 
 const HeroSlider = () => {
+  const [showMessage, setShowMessage] = useState(false);
+
+  const handleClick = () => {
+    setShowMessage(true);
+  };
   return (
     <section className="relative flex items-center justify-center min-h-screen md:pt-[6rem] bg-black overflow-hidden">
       {/* Background Video or Image */}
@@ -59,12 +64,20 @@ const HeroSlider = () => {
           The seed has been planted, It was watered, It grew quietly. This is the moment we’ve been building toward. The time for preparation has passed, it’s time to gather.
         </p>
 
-        <button
-          className="mt-8 bg-green-500 hover:bg-green-700 text-white text-[1.5rem]  sm:text-[1.5rem]  font-semibold py-5 px-10 rounded-lg shadow-lg hover:shadow-green-600/50 transition"
-          onClick={() => window.location.href = '/register'}
-        >
-          Click Here To Register
-        </button>
+        <div >
+          <button
+            onClick={handleClick}
+            className="mt-8 bg-green-500 text-white text-[1.5rem] font-semibold py-5 px-10 rounded-lg shadow-lg hover:shadow-green-600/50 transition cursor-not-allowed"
+          >
+            Registration Closed
+          </button>
+
+          {showMessage && (
+            <p className="mt-4 text-red-600 font-semibold">
+              Registration has closed. Please come to the camp ground for manual registration.
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );
