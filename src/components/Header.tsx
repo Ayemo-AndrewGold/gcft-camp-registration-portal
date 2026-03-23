@@ -64,7 +64,7 @@ const Header = () => {
               <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-md p-2 space-y-2 z-50 font-[lexend]">
                 <Link
                   href="/register"
-                  className="block text-sm text-[#0E0E1D] hover:text-[#85C061]"
+                  className="block text-sm text-[#0E0E1D] hover:text-[#85C061] cursor-not-allowed"
                 >
                   Check Status
                 </Link>

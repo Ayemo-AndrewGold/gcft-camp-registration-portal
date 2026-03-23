@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { FaFacebook, FaLinkedin, FaLinkedinIn, FaYoutube } from 'react-icons/fa';
 import { FaInstagram, FaX } from 'react-icons/fa6';
+import toast from "react-hot-toast";
 
 const HeroSlider = () => {
-  const [showMessage, setShowMessage] = useState(false);
-
   const handleClick = () => {
-    setShowMessage(true);
+    toast.error(
+      "Registration has closed. Please come to the camp ground for manual registration."
+    );
   };
   return (
     <section className="relative flex items-center justify-center min-h-screen md:pt-[6rem] bg-black overflow-hidden">
@@ -71,12 +72,6 @@ const HeroSlider = () => {
           >
             Registration Closed
           </button>
-
-          {showMessage && (
-            <p className="mt-4 text-red-600 font-semibold">
-              Registration has closed. Please come to the camp ground for manual registration.
-            </p>
-          )}
         </div>
       </div>
     </section>
