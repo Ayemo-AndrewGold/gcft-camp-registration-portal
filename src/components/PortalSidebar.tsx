@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AiOutlineDashboard } from 'react-icons/ai';
 import { FiMenu, FiX } from 'react-icons/fi';
-import { Hotel, User, LogOut } from "lucide-react";
+import { Hotel, User, LogOut, MapPin } from "lucide-react";
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
 
@@ -27,6 +27,7 @@ export default function PortalSidebar() {
     { href: '/portal/verifiedcampers', label: 'Verified Campers',     icon: User },
     { href: '/portal/allcampers',   label: 'All Campers',             icon: Hotel },
     { href: '/portal/manualreg',    label: 'Manual Reallocation',     icon: User },
+    { href: '/portal/attendancereg',    label: 'Attendance Reg',     icon: MapPin },
     { href: '/portal/backupreg',    label: 'Backup Registration',     icon: User },
     { href: '/portal/ministers',    label: 'Ministers Registration',  icon: User },
     { href: '/portal/minmeal',      label: 'Ministers Meal Track',    icon: User },
