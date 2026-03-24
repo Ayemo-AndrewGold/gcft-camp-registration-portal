@@ -68,10 +68,36 @@ const HeroSlider = () => {
         <div >
           <button
             onClick={handleClick}
-            className="mt-8 bg-green-500 text-white text-[1.5rem] font-semibold py-5 px-10 rounded-lg shadow-lg hover:shadow-green-600/50 transition cursor-not-allowed"
+            className="
+              mt-6 sm:mt-8
+              bg-green-500 text-white font-semibold
+              text-base sm:text-lg md:text-xl lg:text-2xl
+              py-3 px-6 sm:py-4 sm:px-8 md:py-5 md:px-10
+              w-full sm:w-auto
+              rounded-lg shadow-lg
+              hover:shadow-green-600/50
+              transition
+              cursor-not-allowed
+            "
           >
-            Registration Closed
+            Registration has closed
           </button>
+          <p
+            className="
+              flex items-start sm:items-center gap-2 sm:gap-3
+              rounded-lg border border-red-500 bg-red-50
+              px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4
+              text-red-700 font-semibold
+              text-sm sm:text-base md:text-lg
+              animate-pulse mt-2
+            "
+          >
+            <span className="inline-flex h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-red-500 shrink-0 mt-1 sm:mt-0" />
+            
+            <span className="leading-snug sm:leading-normal">
+              ⚠️ All further registration will now take place at the camp ground.
+            </span>
+        </p>
         </div>
       </div>
     </section>

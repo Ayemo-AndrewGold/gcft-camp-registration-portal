@@ -57,10 +57,6 @@ const RegisteredCampersCount: React.FC = () => {
               <p className="text-[#85C061] text-2xl font-semibold mt-2">
                 Campers Registered
               </p>
-              <p className="flex items-center gap-2 rounded-lg border border-red-500 bg-red-50 px-4 py-3 text-red-700 font-semibold animate-pulse">
-              <span className="inline-flex h-3 w-3 rounded-full bg-red-500 shrink-0" />
-  ⚠️ Registration has closed. Please come to the camp ground for manual registration.
-              </p>
             </div>
           )}
         </div>
