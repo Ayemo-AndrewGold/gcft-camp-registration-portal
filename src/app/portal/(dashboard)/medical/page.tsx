@@ -26,7 +26,11 @@ const Medical: React.FC = () => {
   const [fetchProgress, setFetchProgress] = useState<string>("");
   const [loadingMore, setLoadingMore] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const printRef       = useRef<HTMLDivElement>(null);
+  const searchTermRef  = useRef(searchTerm); // always holds latest searchTerm value
+
+  // Keep ref in sync with state
+  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -85,7 +89,8 @@ const Medical: React.FC = () => {
         all = [...all, ...batch];
         _cachedMedical = all;
         setMedicalRecords(all);
-        setFilteredRecords(prev => searchTerm ? prev : all);
+        // Only update filteredRecords if user isn't actively searching
+        if (!searchTermRef.current) setFilteredRecords(all);
         if (batch.length < BATCH_SIZE) break;
         skip += BATCH_SIZE;
       }
@@ -105,7 +110,8 @@ const Medical: React.FC = () => {
 
   useEffect(() => { fetchMedicalRecords(); }, []);
 
-  // Search filter
+  // Search filter — only re-runs when searchTerm changes, NOT when medicalRecords grows.
+  // Background batch updates call setFilteredRecords directly (see fetchMedicalRecords).
   useEffect(() => {
     const results = medicalRecords.filter((record) =>
       Object.values(record).some((val) =>
@@ -114,7 +120,8 @@ const Medical: React.FC = () => {
     );
     setFilteredRecords(results);
     setCurrentPage(1);
-  }, [searchTerm, medicalRecords]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]); // ← removed medicalRecords from deps intentionally
 
   // Pagination
   const indexOfLast  = currentPage * entriesPerPage;
@@ -222,7 +229,7 @@ const Medical: React.FC = () => {
   }
 
   return (
-    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
+    <div className="bg-gradient-to-t from-green-50 via-white to-green-300 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[90vw] max-w-lg">
