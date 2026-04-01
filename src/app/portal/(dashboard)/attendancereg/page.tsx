@@ -47,8 +47,8 @@ const countriesList = [
 ];
 
 const AttendanceOnlyReg: React.FC = () => {
-  const [phoneNumber, setPhoneNumber]   = useState("");
-  const [formData, setFormData]         = useState<Partial<AttendanceReg>>({
+  const [phoneNumber, setPhoneNumber]       = useState("");
+  const [formData, setFormData]             = useState<Partial<AttendanceReg>>({
     arrival_date: "2026-04-02",
     country: "Nigeria",
   });
@@ -58,6 +58,7 @@ const AttendanceOnlyReg: React.FC = () => {
   const [processing, setProcessing]         = useState(false);
   const [isCameraOpen, setIsCameraOpen]     = useState(false);
   const [toast, setToast]                   = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [isDarkMode, setIsDarkMode]         = useState(false);
 
   const webcamRef    = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,8 +68,20 @@ const AttendanceOnlyReg: React.FC = () => {
     setTimeout(() => setToast(null), 6000);
   };
 
+  useEffect(() => { fetchCategories(); }, []);
+
+  // Dark mode listener
   useEffect(() => {
-    fetchCategories();
+    const handleThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ isDarkMode: boolean }>;
+      setIsDarkMode(customEvent.detail.isDarkMode);
+    };
+    window.addEventListener('themeToggle', handleThemeChange);
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') setIsDarkMode(true);
+    }
+    return () => window.removeEventListener('themeToggle', handleThemeChange);
   }, []);
 
   const fetchCategories = async () => {
@@ -83,33 +96,28 @@ const AttendanceOnlyReg: React.FC = () => {
     }
   };
 
-  // ── Auto-fill based on category ───────────────────────────────────────────
   const handleFieldChange = (field: string, value: string | number) => {
     let updated: Partial<AttendanceReg> = { ...formData, [field]: value };
 
     if (field === "category") {
       const categoryMap: Record<string, { marital_status: string; age_range: string }> = {
-        "Young Brothers":               { marital_status: "Single",  age_range: "18-25" },
-        "Married (male)":               { marital_status: "Married", age_range: "36-45" },
-        "Teens Below 18 (male)":        { marital_status: "Single",  age_range: "10-17" },
-        "Young Sisters":                { marital_status: "Single",  age_range: "18-25" },
-        "Married (female)":             { marital_status: "Married", age_range: "36-45" },
-        "Teens Below 18 (female)":      { marital_status: "Single",  age_range: "10-17" },
-        "Nursing Mothers":              { marital_status: "Married", age_range: "26-35" },
-        "Elderly Sisters (56 & Above)": { marital_status: "Married", age_range: "56-65" },
-        "Elderly Brothers (56 & Above)":{ marital_status: "Married", age_range: "56-65" },
+        "Young Brothers":                { marital_status: "Single",  age_range: "18-25" },
+        "Married (male)":                { marital_status: "Married", age_range: "36-45" },
+        "Teens Below 18 (male)":         { marital_status: "Single",  age_range: "10-17" },
+        "Young Sisters":                 { marital_status: "Single",  age_range: "18-25" },
+        "Married (female)":              { marital_status: "Married", age_range: "36-45" },
+        "Teens Below 18 (female)":       { marital_status: "Single",  age_range: "10-17" },
+        "Nursing Mothers":               { marital_status: "Married", age_range: "26-35" },
+        "Elderly Sisters (56 & Above)":  { marital_status: "Married", age_range: "56-65" },
+        "Elderly Brothers (56 & Above)": { marital_status: "Married", age_range: "56-65" },
       };
-      if (categoryMap[value as string]) {
-        updated = { ...updated, ...categoryMap[value as string] };
-      }
+      if (categoryMap[value as string]) updated = { ...updated, ...categoryMap[value as string] };
     }
 
     if (field === "country") updated = { ...updated, state: "" };
-
     setFormData(updated);
   };
 
-  // ── Photo handlers ────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -139,7 +147,6 @@ const AttendanceOnlyReg: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!phoneNumber || phoneNumber.length !== 11) {
       showToast("Please enter a valid 11-digit phone number", "error"); return;
@@ -148,24 +155,17 @@ const AttendanceOnlyReg: React.FC = () => {
       "first_name","category","age_range","marital_status","country","state","arrival_date",
     ];
     const missing = required.filter(f => !formData[f]);
-    if (missing.length > 0) {
-      showToast(`Please fill in: ${missing.join(", ")}`, "error"); return;
-    }
-    if (!profilePicture) {
-      showToast("Please upload or capture a profile picture", "error"); return;
-    }
+    if (missing.length > 0) { showToast(`Please fill in: ${missing.join(", ")}`, "error"); return; }
+    if (!profilePicture) { showToast("Please upload or capture a profile picture", "error"); return; }
 
     setProcessing(true);
     try {
       const fd = new FormData();
-
       let file = profilePicture;
       if (!file.name || file.name === "blob") {
         file = new File([file], "profile-picture.jpg", { type: file.type || "image/jpeg" });
       }
       fd.append("file", file);
-
-      // Required fields
       fd.append("category",       formData.category       || "");
       fd.append("first_name",     formData.first_name     || "");
       fd.append("age_range",      formData.age_range      || "");
@@ -174,16 +174,14 @@ const AttendanceOnlyReg: React.FC = () => {
       fd.append("state",          formData.state          || "");
       fd.append("arrival_date",   formData.arrival_date   || "");
 
-      // Optional fields
-      if (formData.no_children)          fd.append("no_children",           String(formData.no_children));
-      if (formData.names_children)       fd.append("names_children",        formData.names_children);
-      if (formData.medical_issues)       fd.append("medical_issues",        formData.medical_issues);
-      if (formData.local_assembly)       fd.append("local_assembly",        formData.local_assembly);
+      if (formData.no_children)            fd.append("no_children",            String(formData.no_children));
+      if (formData.names_children)         fd.append("names_children",         formData.names_children);
+      if (formData.medical_issues)         fd.append("medical_issues",         formData.medical_issues);
+      if (formData.local_assembly)         fd.append("local_assembly",         formData.local_assembly);
       if (formData.local_assembly_address) fd.append("local_assembly_address", formData.local_assembly_address);
 
       const res = await fetch(`${API_BASE}/register-attendance-only/${phoneNumber}`, {
-        method: "POST",
-        body: fd,
+        method: "POST", body: fd,
       });
 
       if (!res.ok) {
@@ -199,7 +197,6 @@ const AttendanceOnlyReg: React.FC = () => {
         "success"
       );
 
-      // Reset
       setPhoneNumber("");
       setFormData({ arrival_date: "2026-04-02", country: "Nigeria" });
       setProfilePicture(null);
@@ -222,11 +219,19 @@ const AttendanceOnlyReg: React.FC = () => {
   };
 
   const showChildrenFields = formData.category === "Nursing Mothers";
-  const inputCls = "w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent";
-  const labelCls = "block text-sm font-semibold text-gray-700 mb-2";
+
+  // Reusable dark mode classes
+  const inputCls = `w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
+    isDarkMode
+      ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
+      : 'bg-white border-gray-300 text-gray-900'
+  }`;
+  const labelCls = `block text-sm font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`;
 
   return (
-    <div className="bg-gradient-to-t from-green-50 via-white to-green-300 w-full p-2 rounded-lg shadow-md">
+    <div className={`w-full p-2 rounded-lg shadow-md transition-colors duration-300 ${
+      isDarkMode ? 'bg-gray-900' : 'bg-gradient-to-t from-green-50 via-white to-green-300'
+    }`}>
 
       {/* Toast */}
       {toast && (
@@ -266,31 +271,46 @@ const AttendanceOnlyReg: React.FC = () => {
         </div>
       )}
 
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-2">
+      <section className={`min-h-screen rounded-lg shadow-md p-2 transition-colors duration-300 ${
+        isDarkMode ? 'bg-gray-800' : 'bg-white'
+      }`}>
 
         {/* Header */}
-        <div className="mb-3 pb-4 border-b-2 border-green-500">
-          <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2 flex items-center gap-3">
-            <MapPin className="w-8 h-8 text-green-600" />
+        <div className={`mb-3 pb-4 border-b-2 ${isDarkMode ? 'border-green-700' : 'border-green-500'}`}>
+          <h1 className={`text-3xl lg:text-4xl font-bold mb-2 flex items-center gap-3 ${
+            isDarkMode ? 'text-gray-100' : 'text-gray-800'
+          }`}>
+            <MapPin className="w-8 h-8 text-green-500" />
             Attendance Registration
           </h1>
-          <p className="text-gray-600">For attendees with external accommodation (hotel / private)</p>
+          <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+            For attendees with external accommodation (hotel / private)
+          </p>
         </div>
 
         {/* Info Banner */}
-        <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+        <div className={`mb-6 border-l-4 border-green-500 p-4 rounded ${
+          isDarkMode ? 'bg-green-900/30' : 'bg-green-50'
+        }`}>
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-semibold text-green-800 mb-1">Who is this for?</h4>
-              <p className="text-xs text-green-700">
-                Register attendees who will be present on the camp ground but are <strong>not sleeping on-site</strong>, those staying in hotels or private accommodation. This ensures everyone on the grounds is accounted for. Fields marked <span className="text-red-500">*</span> are required.
+              <h4 className={`text-sm font-semibold mb-1 ${isDarkMode ? 'text-green-300' : 'text-green-800'}`}>
+                Who is this for?
+              </h4>
+              <p className={`text-xs ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>
+                Register attendees who will be present on the camp ground but are{' '}
+                <strong>not sleeping on-site</strong>, those staying in hotels or private accommodation.
+                This ensures everyone on the grounds is accounted for. Fields marked{' '}
+                <span className="text-red-500">*</span> are required.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto bg-gray-50 rounded-lg p-6 space-y-6">
+        <div className={`max-w-4xl mx-auto rounded-lg p-6 space-y-6 transition-colors duration-300 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+        }`}>
 
           {/* Phone Number */}
           <div>
@@ -314,8 +334,12 @@ const AttendanceOnlyReg: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="w-48 h-48 bg-gray-200 border-4 border-dashed border-gray-400 rounded-full flex items-center justify-center">
-                  <p className="text-gray-500 text-center px-4 text-sm">No photo yet</p>
+                <div className={`w-48 h-48 border-4 border-dashed rounded-full flex items-center justify-center ${
+                  isDarkMode ? 'bg-gray-600 border-gray-500' : 'bg-gray-200 border-gray-400'
+                }`}>
+                  <p className={`text-center px-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No photo yet
+                  </p>
                 </div>
               )}
             </div>
@@ -374,7 +398,7 @@ const AttendanceOnlyReg: React.FC = () => {
             </select>
           </div>
 
-          {/* Children fields — only for Nursing Mothers */}
+          {/* Children fields */}
           {showChildrenFields && (
             <>
               <div>
@@ -406,7 +430,7 @@ const AttendanceOnlyReg: React.FC = () => {
               <label className={labelCls}>State <span className="text-red-500">*</span></label>
               <select value={formData.state || ""} onChange={e => handleFieldChange("state", e.target.value)}
                 disabled={!formData.country}
-                className={`${inputCls} cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed`}>
+                className={`${inputCls} cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}>
                 <option value="">Select state</option>
                 {formData.country && countryStates[formData.country]
                   ? countryStates[formData.country].map(s => <option key={s} value={s}>{s}</option>)
@@ -464,7 +488,11 @@ const AttendanceOnlyReg: React.FC = () => {
               )}
             </button>
             <button onClick={handleReset} disabled={processing}
-              className="px-6 py-4 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 flex items-center gap-2 disabled:opacity-50">
+              className={`px-6 py-4 font-semibold rounded-lg flex items-center gap-2 disabled:opacity-50 transition-colors ${
+                isDarkMode
+                  ? 'bg-gray-600 text-gray-200 hover:bg-gray-500'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}>
               <RefreshCw className="w-5 h-5" /> Reset Form
             </button>
           </div>
