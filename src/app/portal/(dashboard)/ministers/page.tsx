@@ -75,18 +75,31 @@ const MinisterRegForm: React.FC = () => {
   const [processing, setProcessing]         = useState<boolean>(false);
   const [isCameraOpen, setIsCameraOpen]     = useState(false);
   const [toast, setToast]                   = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [isDarkMode, setIsDarkMode]         = useState(false);
 
-  // Hall & Floor state
-  const [halls, setHalls]               = useState<Hall[]>([]);
-  const [floors, setFloors]             = useState<Floor[]>([]);
-  const [hallsLoading, setHallsLoading] = useState(false);
-  const [floorsLoading, setFloorsLoading] = useState(false);
+  const [halls, setHalls]                   = useState<Hall[]>([]);
+  const [floors, setFloors]                 = useState<Floor[]>([]);
+  const [hallsLoading, setHallsLoading]     = useState(false);
+  const [floorsLoading, setFloorsLoading]   = useState(false);
   const [selectedHallName, setSelectedHallName] = useState<string>("");
 
   const webcamRef    = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all halls on mount
+  // Dark mode listener
+  useEffect(() => {
+    const handleThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ isDarkMode: boolean }>;
+      setIsDarkMode(customEvent.detail.isDarkMode);
+    };
+    window.addEventListener('themeToggle', handleThemeChange);
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') setIsDarkMode(true);
+    }
+    return () => window.removeEventListener('themeToggle', handleThemeChange);
+  }, []);
+
   useEffect(() => {
     const fetchHalls = async () => {
       setHallsLoading(true);
@@ -95,7 +108,7 @@ const MinisterRegForm: React.FC = () => {
         if (!res.ok) throw new Error("Failed to fetch halls");
         const data: Hall[] = await res.json();
         setHalls(data);
-      } catch (err) {
+      } catch {
         showToast("Could not load halls. Please refresh.", "error");
       } finally {
         setHallsLoading(false);
@@ -104,12 +117,8 @@ const MinisterRegForm: React.FC = () => {
     fetchHalls();
   }, []);
 
-  // Fetch floors when a hall is selected
   useEffect(() => {
-    if (!selectedHallName) {
-      setFloors([]);
-      return;
-    }
+    if (!selectedHallName) { setFloors([]); return; }
     const fetchFloors = async () => {
       setFloorsLoading(true);
       setFloors([]);
@@ -118,7 +127,7 @@ const MinisterRegForm: React.FC = () => {
         if (!res.ok) throw new Error("Failed to fetch floors");
         const data: Floor[] = await res.json();
         setFloors(data);
-      } catch (err) {
+      } catch {
         showToast("Could not load floors for selected hall.", "error");
       } finally {
         setFloorsLoading(false);
@@ -134,31 +143,26 @@ const MinisterRegForm: React.FC = () => {
 
   const handleFieldChange = (field: string, value: string) => {
     let updated: Partial<MinisterReg> = { ...formData, [field]: value };
-
     if (field === "category") {
       const map: Record<string, { gender: string; marital_status: string }> = {
-        "Minister":       { gender: "Male",   marital_status: "Married" },
-        "Elder":          { gender: "Male",   marital_status: "Married" },
-        "Deacon":         { gender: "Male",   marital_status: "Married" },
-        "Trustee":        { gender: "Male",   marital_status: "Married" },
-        "Deaconess":      { gender: "Female", marital_status: "Married" },
-        "Pastor's Wife":  { gender: "Female", marital_status: "Married" },  
+        "Minister":      { gender: "Male",   marital_status: "Married" },
+        "Elder":         { gender: "Male",   marital_status: "Married" },
+        "Deacon":        { gender: "Male",   marital_status: "Married" },
+        "Trustee":       { gender: "Male",   marital_status: "Married" },
+        "Deaconess":     { gender: "Female", marital_status: "Married" },
+        "Pastor's Wife": { gender: "Female", marital_status: "Married" },
       };
       if (map[value]) updated = { ...updated, ...map[value] };
     }
-
     if (field === "country") updated = { ...updated, state: "" };
-
     setFormData(updated);
   };
 
-  // Handle hall selection — store hall_name in formData, trigger floor fetch
   const handleHallChange = (hallName: string) => {
     setSelectedHallName(hallName);
     setFormData(prev => ({ ...prev, hall_name: hallName, floor_id: "" }));
   };
 
-  // Handle floor selection — store floor_id (UUID) in formData
   const handleFloorChange = (floorId: string) => {
     setFormData(prev => ({ ...prev, floor_id: floorId }));
   };
@@ -200,23 +204,17 @@ const MinisterRegForm: React.FC = () => {
       "first_name","gender","age_range","marital_status","country","state","arrival_date",
     ];
     const missing = required.filter(f => !formData[f]);
-    if (missing.length > 0) {
-      showToast(`Please fill in: ${missing.join(", ")}`, "error"); return;
-    }
-    if (!profilePicture) {
-      showToast("Please upload or capture a profile picture", "error"); return;
-    }
+    if (missing.length > 0) { showToast(`Please fill in: ${missing.join(", ")}`, "error"); return; }
+    if (!profilePicture) { showToast("Please upload or capture a profile picture", "error"); return; }
 
     setProcessing(true);
     try {
       const fd = new FormData();
-
       let file = profilePicture;
       if (!file.name || file.name === "blob") {
         file = new File([file], "profile-picture.jpg", { type: file.type || "image/jpeg" });
       }
       fd.append("file", file);
-
       fd.append("phone_number",   formData.phone_number   || "");
       fd.append("first_name",     formData.first_name     || "");
       fd.append("gender",         formData.gender         || "");
@@ -227,16 +225,12 @@ const MinisterRegForm: React.FC = () => {
       fd.append("arrival_date",   formData.arrival_date   || "");
 
       const optional: (keyof MinisterReg)[] = [
-        "last_name","bed_number", "category","medical_issues",
+        "last_name","bed_number","category","medical_issues",
         "local_assembly","local_assembly_address","hall_name","floor_id",
       ];
       optional.forEach(f => { if (formData[f]) fd.append(f, formData[f] as string); });
 
-      const res = await fetch(`${API_BASE}/ticketing/ministers/register`, {
-        method: "POST",
-        body: fd,
-      });
-
+      const res = await fetch(`${API_BASE}/ticketing/ministers/register`, { method: "POST", body: fd });
       if (!res.ok) {
         const rawText = await res.text();
         let detail = `Server error: ${res.status}`;
@@ -257,7 +251,6 @@ const MinisterRegForm: React.FC = () => {
       setFloors([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
-      console.error("Registration error:", err);
       showToast(`❌ ${err.message || "Registration failed"}`, "error");
     } finally {
       setProcessing(false);
@@ -273,11 +266,21 @@ const MinisterRegForm: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const inputCls = "w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent";
-  const labelCls = "block text-sm font-semibold text-gray-700 mb-2";
+  // Reusable dark mode classes
+  const inputCls = `w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
+    isDarkMode
+      ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
+      : 'bg-white border-gray-300 text-gray-900'
+  }`;
+  const labelCls = `block text-sm font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`;
+  const loadingCls = `${inputCls} flex items-center gap-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`;
 
   return (
-    <div className="bg-gradient-to-t from-green-50 via-white to-green-300 w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md">
+    <div className={`w-full mt-2 p-1 sm:p-3 rounded-lg shadow-md transition-colors duration-300 ${
+      isDarkMode
+        ? 'bg-gray-900'
+        : 'bg-gradient-to-t from-green-50 via-white to-green-300'
+    }`}>
 
       {/* Toast */}
       {toast && (
@@ -317,30 +320,43 @@ const MinisterRegForm: React.FC = () => {
         </div>
       )}
 
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 lg:p-6">
+      <section className={`min-h-screen rounded-lg shadow-md p-2 lg:p-6 transition-colors duration-300 ${
+        isDarkMode ? 'bg-gray-800' : 'bg-white'
+      }`}>
         {/* Header */}
-        <div className="mb-8 pb-6 border-b-2 border-green-500">
-          <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2 flex items-center gap-3">
-            <UserPlus className="w-8 h-8 text-green-600" />
+        <div className={`mb-8 pb-6 border-b-2 ${isDarkMode ? 'border-green-700' : 'border-green-500'}`}>
+          <h1 className={`text-3xl lg:text-4xl font-bold mb-2 flex items-center gap-3 ${
+            isDarkMode ? 'text-gray-100' : 'text-gray-800'
+          }`}>
+            <UserPlus className="w-8 h-8 text-green-500" />
             Ministers Registration
           </h1>
-          <p className="text-gray-600">Register ordained Ministers, Elders, Deacons and Trustees</p>
+          <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+            Register ordained Ministers, Elders, Deacons and Trustees
+          </p>
         </div>
 
         {/* Info Banner */}
-        <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+        <div className={`mb-6 border-l-4 border-green-500 p-4 rounded ${
+          isDarkMode ? 'bg-green-900/30' : 'bg-green-50'
+        }`}>
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-semibold text-green-800 mb-1">Ministers Registration Info</h4>
-              <p className="text-xs text-green-700">
-                For ordained Ministers, Elders, Deacons and Trustees only. Fields marked <span className="text-red-500">*</span> are required.
+              <h4 className={`text-sm font-semibold mb-1 ${isDarkMode ? 'text-green-300' : 'text-green-800'}`}>
+                Ministers Registration Info
+              </h4>
+              <p className={`text-xs ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>
+                For ordained Ministers, Elders, Deacons and Trustees only. Fields marked{' '}
+                <span className="text-red-500">*</span> are required.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto bg-gray-50 rounded-lg p-6 space-y-6">
+        <div className={`max-w-4xl mx-auto rounded-lg p-6 space-y-6 transition-colors duration-300 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+        }`}>
 
           {/* Phone */}
           <div>
@@ -364,8 +380,12 @@ const MinisterRegForm: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="w-48 h-48 bg-gray-200 border-4 border-dashed border-gray-400 rounded-full flex items-center justify-center">
-                  <p className="text-gray-500 text-center px-4 text-sm">No photo yet</p>
+                <div className={`w-48 h-48 border-4 border-dashed rounded-full flex items-center justify-center ${
+                  isDarkMode ? 'bg-gray-600 border-gray-500' : 'bg-gray-200 border-gray-400'
+                }`}>
+                  <p className={`text-center px-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No photo yet
+                  </p>
                 </div>
               )}
             </div>
@@ -401,16 +421,16 @@ const MinisterRegForm: React.FC = () => {
           {/* Category */}
           <div>
             <label className={labelCls}>Category</label>
-              <select value={formData.category || ""} onChange={e => handleFieldChange("category", e.target.value)}
-                className={`${inputCls} cursor-pointer`}>
-                <option value="">Select category</option>
-                <option value="Minister">Pastor</option>
-                <option value="Pastor's Wife">Pastor's Wife</option>
-                <option value="Minister">Minister</option>
-                <option value="Elder">Elder</option>
-                <option value="Deacon">Deacon</option>
-                <option value="Trustee">Trustee</option>
-              </select>
+            <select value={formData.category || ""} onChange={e => handleFieldChange("category", e.target.value)}
+              className={`${inputCls} cursor-pointer`}>
+              <option value="">Select category</option>
+              <option value="Minister">Pastor</option>
+              <option value="Pastor's Wife">Pastor's Wife</option>
+              <option value="Minister">Minister</option>
+              <option value="Elder">Elder</option>
+              <option value="Deacon">Deacon</option>
+              <option value="Trustee">Trustee</option>
+            </select>
           </div>
 
           {/* Gender + Marital Status */}
@@ -462,7 +482,7 @@ const MinisterRegForm: React.FC = () => {
               <label className={labelCls}>State <span className="text-red-500">*</span></label>
               <select value={formData.state || ""} onChange={e => handleFieldChange("state", e.target.value)}
                 disabled={!formData.country}
-                className={`${inputCls} cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed`}>
+                className={`${inputCls} cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}>
                 <option value="">Select state</option>
                 {formData.country && countryStates[formData.country]
                   ? countryStates[formData.country].map(s => <option key={s} value={s}>{s}</option>)
@@ -480,46 +500,38 @@ const MinisterRegForm: React.FC = () => {
               onChange={e => handleFieldChange("arrival_date", e.target.value)} className={inputCls} />
           </div>
 
-          {/* ── Optional Fields ── */}
-          <div className="pt-4 border-t-2 border-dashed border-gray-200">
+          {/* Optional Fields */}
+          <div className={`pt-4 border-t-2 border-dashed ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
             <div className="space-y-4">
 
-              {/* Hall + Floor — API-driven */}
+              {/* Hall + Floor */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Hall Name</label>
                   {hallsLoading ? (
-                    <div className={`${inputCls} flex items-center gap-2 text-gray-400 bg-gray-100`}>
+                    <div className={loadingCls}>
                       <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                       Loading halls...
                     </div>
                   ) : (
-                    <select
-                      value={selectedHallName}
-                      onChange={e => handleHallChange(e.target.value)}
-                      className={`${inputCls} cursor-pointer`}
-                    >
+                    <select value={selectedHallName} onChange={e => handleHallChange(e.target.value)}
+                      className={`${inputCls} cursor-pointer`}>
                       <option value="">Select hall</option>
-                      {halls.map(h => (
-                        <option key={h.id} value={h.hall_name}>{h.hall_name}</option>
-                      ))}
+                      {halls.map(h => <option key={h.id} value={h.hall_name}>{h.hall_name}</option>)}
                     </select>
                   )}
                 </div>
                 <div>
                   <label className={labelCls}>Floor</label>
                   {floorsLoading ? (
-                    <div className={`${inputCls} flex items-center gap-2 text-gray-400 bg-gray-100`}>
+                    <div className={loadingCls}>
                       <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                       Loading floors...
                     </div>
                   ) : (
-                    <select
-                      value={formData.floor_id || ""}
-                      onChange={e => handleFloorChange(e.target.value)}
+                    <select value={formData.floor_id || ""} onChange={e => handleFloorChange(e.target.value)}
                       disabled={!selectedHallName || floors.length === 0}
-                      className={`${inputCls} cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                    >
+                      className={`${inputCls} cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}>
                       <option value="">
                         {!selectedHallName ? "Select a hall first" : floors.length === 0 ? "No floors available" : "Select floor"}
                       </option>
@@ -533,16 +545,12 @@ const MinisterRegForm: React.FC = () => {
                 </div>
               </div>
 
-              {/* Bed Space — manual */}
+              {/* Bed Space */}
               <div>
                 <label className={labelCls}>Bed Space</label>
-                <input
-                  type="text"
-                  value={formData.bed_number || ""}
+                <input type="text" value={formData.bed_number || ""}
                   onChange={e => handleFieldChange("bed_number", e.target.value)}
-                  placeholder="e.g. Room 1A, Room 1B, Room 1C"
-                  className={inputCls}
-                />
+                  placeholder="e.g. Room 1A, Room 1B, Room 1C" className={inputCls} />
               </div>
 
               {/* Local Assembly */}
@@ -587,7 +595,11 @@ const MinisterRegForm: React.FC = () => {
               )}
             </button>
             <button onClick={handleReset} disabled={processing}
-              className="px-6 py-4 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 flex items-center gap-2 disabled:opacity-50">
+              className={`px-6 py-4 font-semibold rounded-lg flex items-center gap-2 disabled:opacity-50 transition-colors ${
+                isDarkMode
+                  ? 'bg-gray-600 text-gray-200 hover:bg-gray-500'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}>
               <RefreshCw className="w-5 h-5" /> Reset Form
             </button>
           </div>
