@@ -45,25 +45,25 @@ type Tab = "mark" | "status" | "pending";
 
 const todayDate = () => new Date().toISOString().split("T")[0];
 
-const mealOptions: { value: MealType; label: string; icon: React.ReactNode; color: string; bg: string }[] = [
-  { value: "breakfast", label: "Breakfast", icon: <Coffee className="w-4 h-4" />, color: "text-amber-600", bg: "bg-amber-50 border-amber-300" },
-  { value: "lunch",     label: "Lunch",     icon: <Sun     className="w-4 h-4" />, color: "text-green-600", bg: "bg-green-50 border-green-300" },
-  { value: "dinner",    label: "Dinner",    icon: <Moon    className="w-4 h-4" />, color: "text-indigo-600", bg: "bg-indigo-50 border-indigo-300" },
+const mealOptions: { value: MealType; label: string; icon: React.ReactNode; color: string; bg: string; darkBg: string; darkColor: string }[] = [
+  { value: "breakfast", label: "Breakfast", icon: <Coffee className="w-4 h-4" />, color: "text-amber-600", bg: "bg-amber-50 border-amber-300", darkBg: "bg-amber-900/30 border-amber-600", darkColor: "text-amber-400" },
+  { value: "lunch",     label: "Lunch",     icon: <Sun     className="w-4 h-4" />, color: "text-green-600", bg: "bg-green-50 border-green-300", darkBg: "bg-green-900/30 border-green-600", darkColor: "text-green-400" },
+  { value: "dinner",    label: "Dinner",    icon: <Moon    className="w-4 h-4" />, color: "text-indigo-600", bg: "bg-indigo-50 border-indigo-300", darkBg: "bg-indigo-900/30 border-indigo-600", darkColor: "text-indigo-400" },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const MealBadge = ({ meal }: { meal: MealType }) => {
+const MealBadge = ({ meal, isDarkMode }: { meal: MealType; isDarkMode: boolean }) => {
   const opt = mealOptions.find((m) => m.value === meal)!;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${opt.bg} ${opt.color}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${isDarkMode ? `${opt.darkBg} ${opt.darkColor}` : `${opt.bg} ${opt.color}`}`}>
       {opt.icon} {opt.label}
     </span>
   );
 };
 
-const MinisterCard = ({ minister }: { minister: Minister }) => (
-  <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+const MinisterCard = ({ minister, isDarkMode }: { minister: Minister; isDarkMode: boolean }) => (
+  <div className={`flex items-center gap-3 p-3 rounded-xl border shadow-sm ${isDarkMode ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"}`}>
     {minister.profile_picture_url ? (
       <img
         src={minister.profile_picture_url}
@@ -71,21 +71,21 @@ const MinisterCard = ({ minister }: { minister: Minister }) => (
         className="w-12 h-12 rounded-full object-cover border-2 border-green-400"
       />
     ) : (
-      <div className="w-12 h-12 rounded-full bg-green-100 border-2 border-green-400 flex items-center justify-center">
-        <User className="w-6 h-6 text-green-600" />
+      <div className={`w-12 h-12 rounded-full border-2 border-green-400 flex items-center justify-center ${isDarkMode ? "bg-green-900/40" : "bg-green-100"}`}>
+        <User className="w-6 h-6 text-green-500" />
       </div>
     )}
     <div className="flex-1 min-w-0">
-      <p className="font-semibold text-gray-800 truncate">
+      <p className={`font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-800"}`}>
         {minister.first_name} {minister.last_name}
       </p>
-      <p className="text-xs text-gray-500">
+      <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
         {minister.category} {minister.room_number ? `· Room ${minister.room_number}` : ""}
       </p>
     </div>
     <div className="text-right shrink-0">
-      <p className="text-xs text-gray-400">Meal No.</p>
-      <p className="font-bold text-green-700 text-sm">#{minister.identification_meal_number}</p>
+      <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-400"}`}>Meal No.</p>
+      <p className="font-bold text-green-500 text-sm">#{minister.identification_meal_number}</p>
     </div>
   </div>
 );
@@ -118,7 +118,7 @@ const Toast = ({ toast }: { toast: { message: string; type: "success" | "error" 
 
 // ─── Tab 1: Mark Meal ────────────────────────────────────────────────────────
 
-const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "error" | "info") => void }) => {
+const MarkMealTab = ({ showToast, isDarkMode }: { showToast: (m: string, t: "success" | "error" | "info") => void; isDarkMode: boolean }) => {
   const [phoneNumber, setPhoneNumber]   = useState("");
   const [mealNumber,  setMealNumber]    = useState("");
   const [mealType,    setMealType]      = useState<MealType>("breakfast");
@@ -135,10 +135,7 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
     setLastResult(null);
 
     try {
-      // Build payload — date is handled server-side, do NOT send it
-      const payload: any = {
-        meal_type: mealType,
-      };
+      const payload: any = { meal_type: mealType };
       if (phoneNumber.trim()) payload.phone_number = phoneNumber.trim();
       if (mealNumber.trim())  payload.identification_meal_number = parseInt(mealNumber.trim(), 10);
 
@@ -153,7 +150,6 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
       console.log("📥 Response status:", res.status);
 
       if (!res.ok) {
-        // Try to get detailed error from response
         const rawText = await res.text();
         console.error("❌ Error response body:", rawText);
         let detail = `Server error: ${res.status}`;
@@ -178,11 +174,17 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
     }
   };
 
+  const inputClass = `w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm ${
+    isDarkMode
+      ? "bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400"
+      : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+  }`;
+
   return (
     <div className="space-y-6">
       {/* Meal Type Selector */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">Meal Type</label>
+        <label className={`block text-sm font-semibold mb-3 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>Meal Type</label>
         <div className="grid grid-cols-3 gap-3">
           {mealOptions.map((opt) => (
             <button
@@ -190,7 +192,11 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
               onClick={() => setMealType(opt.value)}
               className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 font-semibold text-sm transition-all ${
                 mealType === opt.value
-                  ? `${opt.bg} ${opt.color} border-current shadow-sm`
+                  ? isDarkMode
+                    ? `${opt.darkBg} ${opt.darkColor} border-current shadow-sm`
+                    : `${opt.bg} ${opt.color} border-current shadow-sm`
+                  : isDarkMode
+                  ? "bg-gray-700 border-gray-600 text-gray-400 hover:border-gray-500"
                   : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
               }`}
             >
@@ -204,28 +210,28 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
       {/* Identifier inputs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+          <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>Phone Number</label>
           <input
             type="tel"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
             placeholder="e.g. 08012345678"
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+            className={inputClass}
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Meal ID Number</label>
+          <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>Meal ID Number</label>
           <input
             type="number"
             value={mealNumber}
             onChange={(e) => setMealNumber(e.target.value)}
             placeholder="e.g. 42"
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+            className={inputClass}
           />
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 -mt-3">Fill in at least one of the fields above. Date is recorded automatically by the server.</p>
+      <p className={`text-xs -mt-3 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>Fill in at least one of the fields above. Date is recorded automatically by the server.</p>
 
       {/* Submit */}
       <button
@@ -248,14 +254,14 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
 
       {/* Result Card */}
       {lastResult && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+        <div className={`border rounded-xl p-4 ${isDarkMode ? "bg-green-900/30 border-green-700" : "bg-green-50 border-green-200"}`}>
           <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="font-semibold text-green-800 text-sm">Meal Recorded</span>
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <span className={`font-semibold text-sm ${isDarkMode ? "text-green-400" : "text-green-800"}`}>Meal Recorded</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-            <span>Date: <strong>{lastResult.date}</strong></span>
-            <span>Meal: <strong className="capitalize">{lastResult.meal_type}</strong></span>
+          <div className={`grid grid-cols-2 gap-2 text-xs ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+            <span>Date: <strong className={isDarkMode ? "text-gray-200" : ""}>{lastResult.date}</strong></span>
+            <span>Meal: <strong className={`capitalize ${isDarkMode ? "text-gray-200" : ""}`}>{lastResult.meal_type}</strong></span>
           </div>
         </div>
       )}
@@ -265,7 +271,7 @@ const MarkMealTab = ({ showToast }: { showToast: (m: string, t: "success" | "err
 
 // ─── Tab 2: Minister Status ───────────────────────────────────────────────────
 
-const StatusTab = ({ showToast }: { showToast: (m: string, t: "success" | "error" | "info") => void }) => {
+const StatusTab = ({ showToast, isDarkMode }: { showToast: (m: string, t: "success" | "error" | "info") => void; isDarkMode: boolean }) => {
   const [phone,    setPhone]    = useState("");
   const [loading,  setLoading]  = useState(false);
   const [result,   setResult]   = useState<MealStatusResponse | null>(null);
@@ -295,7 +301,7 @@ const StatusTab = ({ showToast }: { showToast: (m: string, t: "success" | "error
     <div className="space-y-5">
       {/* Search */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Minister's Phone Number</label>
+        <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>Minister's Phone Number</label>
         <div className="flex gap-2">
           <input
             type="tel"
@@ -303,7 +309,11 @@ const StatusTab = ({ showToast }: { showToast: (m: string, t: "success" | "error
             onChange={(e) => setPhone(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="e.g. 08012345678"
-            className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+            className={`flex-1 px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm ${
+              isDarkMode
+                ? "bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400"
+                : "bg-white border-gray-300 text-gray-900"
+            }`}
           />
           <button
             onClick={handleSearch}
@@ -319,30 +329,27 @@ const StatusTab = ({ showToast }: { showToast: (m: string, t: "success" | "error
       {/* Result */}
       {result && (
         <div className="space-y-4">
-          {/* Minister card */}
-          <MinisterCard minister={result.minister} />
+          <MinisterCard minister={result.minister} isDarkMode={isDarkMode} />
 
-          {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold text-green-700">{result.total_meals_taken}</p>
-              <p className="text-xs text-green-600 mt-1 font-medium">Total Meals Taken</p>
+            <div className={`border rounded-xl p-4 text-center ${isDarkMode ? "bg-green-900/30 border-green-700" : "bg-green-50 border-green-200"}`}>
+              <p className={`text-3xl font-bold ${isDarkMode ? "text-green-400" : "text-green-700"}`}>{result.total_meals_taken}</p>
+              <p className={`text-xs mt-1 font-medium ${isDarkMode ? "text-green-500" : "text-green-600"}`}>Total Meals Taken</p>
             </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold text-gray-700">{result.meal_dates.length}</p>
-              <p className="text-xs text-gray-500 mt-1 font-medium">Days Eaten</p>
+            <div className={`border rounded-xl p-4 text-center ${isDarkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+              <p className={`text-3xl font-bold ${isDarkMode ? "text-gray-200" : "text-gray-700"}`}>{result.meal_dates.length}</p>
+              <p className={`text-xs mt-1 font-medium ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Days Eaten</p>
             </div>
           </div>
 
-          {/* Meal dates */}
           {result.meal_dates.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-green-600" /> Meal Dates
+              <p className={`text-sm font-semibold mb-2 flex items-center gap-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                <Clock className="w-4 h-4 text-green-500" /> Meal Dates
               </p>
               <div className="flex flex-wrap gap-2">
                 {result.meal_dates.map((d) => (
-                  <span key={d} className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
+                  <span key={d} className={`px-3 py-1 text-xs font-semibold rounded-full border ${isDarkMode ? "bg-green-900/40 text-green-400 border-green-700" : "bg-green-100 text-green-700 border-green-200"}`}>
                     {d}
                   </span>
                 ))}
@@ -351,7 +358,7 @@ const StatusTab = ({ showToast }: { showToast: (m: string, t: "success" | "error
           )}
 
           {result.meal_dates.length === 0 && (
-            <div className="text-center py-6 text-gray-400">
+            <div className={`text-center py-6 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
               <Utensils className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">No meals recorded yet</p>
             </div>
@@ -364,7 +371,7 @@ const StatusTab = ({ showToast }: { showToast: (m: string, t: "success" | "error
 
 // ─── Tab 3: Pending Ministers ─────────────────────────────────────────────────
 
-const PendingTab = ({ showToast }: { showToast: (m: string, t: "success" | "error" | "info") => void }) => {
+const PendingTab = ({ showToast, isDarkMode }: { showToast: (m: string, t: "success" | "error" | "info") => void; isDarkMode: boolean }) => {
   const [mealType,  setMealType]  = useState<MealType>("breakfast");
   const [loading,   setLoading]   = useState(false);
   const [ministers, setMinisters] = useState<Minister[] | null>(null);
@@ -393,9 +400,8 @@ const PendingTab = ({ showToast }: { showToast: (m: string, t: "success" | "erro
 
   return (
     <div className="space-y-5">
-      {/* Controls */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">Select Meal to Check</label>
+        <label className={`block text-sm font-semibold mb-3 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>Select Meal to Check</label>
         <div className="grid grid-cols-3 gap-3 mb-4">
           {mealOptions.map((opt) => (
             <button
@@ -403,7 +409,11 @@ const PendingTab = ({ showToast }: { showToast: (m: string, t: "success" | "erro
               onClick={() => setMealType(opt.value)}
               className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 font-semibold text-sm transition-all ${
                 mealType === opt.value
-                  ? `${opt.bg} ${opt.color} border-current shadow-sm`
+                  ? isDarkMode
+                    ? `${opt.darkBg} ${opt.darkColor} border-current shadow-sm`
+                    : `${opt.bg} ${opt.color} border-current shadow-sm`
+                  : isDarkMode
+                  ? "bg-gray-700 border-gray-600 text-gray-400 hover:border-gray-500"
                   : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
               }`}
             >
@@ -426,29 +436,28 @@ const PendingTab = ({ showToast }: { showToast: (m: string, t: "success" | "erro
         </button>
       </div>
 
-      {/* Results */}
       {searched && ministers !== null && (
         <div>
           {ministers.length > 0 ? (
             <>
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-green-600" />
+                <p className={`text-sm font-semibold flex items-center gap-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                  <Users className="w-4 h-4 text-green-500" />
                   {ministers.length} minister{ministers.length !== 1 ? "s" : ""} yet to have{" "}
-                  <MealBadge meal={mealType} />
+                  <MealBadge meal={mealType} isDarkMode={isDarkMode} />
                 </p>
               </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                 {ministers.map((m) => (
-                  <MinisterCard key={m.id} minister={m} />
+                  <MinisterCard key={m.id} minister={m} isDarkMode={isDarkMode} />
                 ))}
               </div>
             </>
           ) : (
-            <div className="text-center py-10 bg-green-50 rounded-xl border border-green-100">
+            <div className={`text-center py-10 rounded-xl border ${isDarkMode ? "bg-green-900/20 border-green-800" : "bg-green-50 border-green-100"}`}>
               <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
-              <p className="font-semibold text-green-700">All ministers have had {mealType} today!</p>
-              <p className="text-xs text-green-500 mt-1">No pending ministers found.</p>
+              <p className={`font-semibold ${isDarkMode ? "text-green-400" : "text-green-700"}`}>All ministers have had {mealType} today!</p>
+              <p className={`text-xs mt-1 ${isDarkMode ? "text-green-600" : "text-green-500"}`}>No pending ministers found.</p>
             </div>
           )}
         </div>
@@ -462,6 +471,20 @@ const PendingTab = ({ showToast }: { showToast: (m: string, t: "success" | "erro
 const MinisterMealTracker: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>("mark");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const handleThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ isDarkMode: boolean }>;
+      setIsDarkMode(customEvent.detail.isDarkMode);
+    };
+    window.addEventListener("themeToggle", handleThemeChange);
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") setIsDarkMode(true);
+    }
+    return () => window.removeEventListener("themeToggle", handleThemeChange);
+  }, []);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -469,34 +492,38 @@ const MinisterMealTracker: React.FC = () => {
   };
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: "mark",    label: "Mark Meal",   icon: <Utensils className="w-4 h-4" /> },
+    { key: "mark",    label: "Mark Meal",    icon: <Utensils className="w-4 h-4" /> },
     { key: "status",  label: "Check Status", icon: <Search   className="w-4 h-4" /> },
-    { key: "pending", label: "Pending",      icon: <Users    className="w-4 h-4" /> },
+    { key: "pending", label: "Pending",       icon: <Users    className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
+    <div className={`bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md ${isDarkMode ? "bg-gray-900" : ""}`}>
       <Toast toast={toast} />
 
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 lg:p-6">
+      <section className={`min-h-screen rounded-lg shadow-md p-2 lg:p-6 ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
         {/* Header */}
-        <div className="mb-6 pb-5 border-b-2 border-green-500">
-          <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-1 flex items-center gap-3">
-            <Utensils className="w-8 h-8 text-green-600" />
+        <div className={`mb-6 pb-5 border-b-2 ${isDarkMode ? "border-green-700" : "border-green-500"}`}>
+          <h1 className={`text-3xl lg:text-4xl font-bold mb-1 flex items-center gap-3 ${isDarkMode ? "text-gray-100" : "text-gray-800"}`}>
+            <Utensils className="w-8 h-8 text-green-500" />
             Minister Meal Tracker
           </h1>
-          <p className="text-gray-500 text-sm">Track and manage meal distribution for ministers</p>
+          <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Track and manage meal distribution for ministers</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+        <div className={`flex gap-1 rounded-xl p-1 mb-6 ${isDarkMode ? "bg-gray-700" : "bg-gray-100"}`}>
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${
                 activeTab === tab.key
-                  ? "bg-white text-green-700 shadow-sm border border-green-100"
+                  ? isDarkMode
+                    ? "bg-gray-600 text-green-400 shadow-sm border border-green-800"
+                    : "bg-white text-green-700 shadow-sm border border-green-100"
+                  : isDarkMode
+                  ? "text-gray-400 hover:text-gray-200"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -508,9 +535,9 @@ const MinisterMealTracker: React.FC = () => {
 
         {/* Tab Content */}
         <div className="max-w-2xl mx-auto">
-          {activeTab === "mark"    && <MarkMealTab  showToast={showToast} />}
-          {activeTab === "status"  && <StatusTab    showToast={showToast} />}
-          {activeTab === "pending" && <PendingTab   showToast={showToast} />}
+          {activeTab === "mark"    && <MarkMealTab  showToast={showToast} isDarkMode={isDarkMode} />}
+          {activeTab === "status"  && <StatusTab    showToast={showToast} isDarkMode={isDarkMode} />}
+          {activeTab === "pending" && <PendingTab   showToast={showToast} isDarkMode={isDarkMode} />}
         </div>
       </section>
     </div>

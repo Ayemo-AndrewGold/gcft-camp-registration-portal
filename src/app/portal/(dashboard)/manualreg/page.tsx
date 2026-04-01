@@ -57,6 +57,7 @@ const ManualPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [fetchProgress, setFetchProgress] = useState<string>("");
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -121,6 +122,20 @@ const ManualPage: React.FC = () => {
     UK: ["England","Scotland","Wales","Northern Ireland"],
   };
 
+  // ── Dark mode listener ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ isDarkMode: boolean }>;
+      setIsDarkMode(customEvent.detail.isDarkMode);
+    };
+    window.addEventListener("themeToggle", handleThemeChange);
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") setIsDarkMode(true);
+    }
+    return () => window.removeEventListener("themeToggle", handleThemeChange);
+  }, []);
+
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 5000);
@@ -159,7 +174,6 @@ const ManualPage: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchUsers = async (showRefreshing = false) => {
-    // ✅ Return cached data instantly
     if (_cachedManual && !showRefreshing) {
       setUsers(_cachedManual);
       setFilteredUsers(_cachedManual);
@@ -245,7 +259,6 @@ const ManualPage: React.FC = () => {
 
   useEffect(() => { fetchUsers(); fetchCategories(); }, []);
 
-  // Search filter
   useEffect(() => {
     const results = users.filter((u) =>
       Object.values(u).some((val) => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
@@ -254,7 +267,6 @@ const ManualPage: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm, users]);
 
-  // Pagination calculations
   const indexOfLast  = currentPage * entriesPerPage;
   const indexOfFirst = indexOfLast - entriesPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirst, indexOfLast);
@@ -391,14 +403,29 @@ const ManualPage: React.FC = () => {
   const allocatedUsers = users.filter(u => u.hall_name && u.bed_number);
   const overdueUsers   = users.filter(u => isArrivalDatePassed(u.arrival_date));
 
+  // ── Shared input class ───────────────────────────────────────────────────────
+  const inputClass = `w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+    isDarkMode
+      ? "bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400"
+      : "bg-white border-gray-300 text-gray-900"
+  }`;
+
+  const selectClass = `w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer ${
+    isDarkMode
+      ? "bg-gray-700 border-gray-600 text-gray-100"
+      : "bg-white border-gray-300 text-gray-900"
+  }`;
+
+  const labelClass = `block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`;
+
   if (loading) {
     return (
-      <div className="bg-gradient-to-t from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md">
-        <section className="bg-white min-h-screen rounded-lg shadow-md p-5 flex items-center justify-center">
+      <div className={`bg-gradient-to-t from-green-100 via-white to-green-200 w-full mt-4 p-3 rounded-lg shadow-md ${isDarkMode ? "bg-gray-900" : ""}`}>
+        <section className={`min-h-screen rounded-lg shadow-md p-5 flex items-center justify-center ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
           <div className="text-center">
             <div className="animate-spin h-16 w-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">Loading unverified users...</p>
-            {fetchProgress && <p className="text-green-600 text-sm mt-2 font-medium">{fetchProgress}</p>}
+            <p className={`text-lg ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>Loading unverified users...</p>
+            {fetchProgress && <p className="text-green-500 text-sm mt-2 font-medium">{fetchProgress}</p>}
           </div>
         </section>
       </div>
@@ -406,7 +433,7 @@ const ManualPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md">
+    <div className={`bg-linear-to-t font-[lexend] from-green-100 via-white to-green-200 w-full rounded-lg shadow-md ${isDarkMode ? "bg-gray-900" : ""}`}>
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[90vw] max-w-lg">
@@ -445,13 +472,13 @@ const ManualPage: React.FC = () => {
         </div>
       )}
 
-      <section className="bg-white min-h-screen rounded-lg shadow-md p-2 sm:p-3 lg:p-3">
+      <section className={`min-h-screen rounded-lg shadow-md p-2 sm:p-3 lg:p-3 ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
         {/* Header */}
-        <div className="mb-8 pb-6 border-b-2 border-green-500">
+        <div className={`mb-8 pb-6 border-b-2 ${isDarkMode ? "border-green-700" : "border-green-500"}`}>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">Manual Bed Reallocation</h1>
-              <p className="text-gray-600">Manage unverified registrations and reassign bedspaces</p>
+              <h1 className={`text-3xl lg:text-4xl font-bold mb-2 ${isDarkMode ? "text-gray-100" : "text-gray-800"}`}>Manual Bed Reallocation</h1>
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>Manage unverified registrations and reassign bedspaces</p>
             </div>
             <div className="flex items-center gap-4 flex-wrap">
               <button onClick={() => fetchUsers(true)} disabled={refreshing}
@@ -460,28 +487,28 @@ const ManualPage: React.FC = () => {
                 {refreshing ? (fetchProgress || 'Refreshing...') : 'Refresh'}
               </button>
               <div className="text-right">
-                <p className="text-sm text-gray-500">Unverified</p>
-                <p className="text-2xl font-bold text-orange-600">{users.length}</p>
+                <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Unverified</p>
+                <p className="text-2xl font-bold text-orange-500">{users.length}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-500">Allocated</p>
-                <p className="text-2xl font-bold text-green-600">{allocatedUsers.length}</p>
+                <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Allocated</p>
+                <p className="text-2xl font-bold text-green-500">{allocatedUsers.length}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-500">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">{overdueUsers.length}</p>
+                <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Overdue</p>
+                <p className="text-2xl font-bold text-red-500">{overdueUsers.length}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Info banner */}
-        <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+        <div className={`mb-6 border-l-4 border-green-500 p-4 rounded ${isDarkMode ? "bg-green-900/20" : "bg-green-50"}`}>
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-semibold text-green-800 mb-1">Reallocation Workflow</h4>
-              <p className="text-xs text-green-700">
+              <h4 className={`text-sm font-semibold mb-1 ${isDarkMode ? "text-green-400" : "text-green-800"}`}>Reallocation Workflow</h4>
+              <p className={`text-xs ${isDarkMode ? "text-green-500" : "text-green-700"}`}>
                 <strong>🔗 Reassign to Walk-In:</strong> Register a new user and automatically transfer bed allocation
               </p>
             </div>
@@ -494,14 +521,20 @@ const ManualPage: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input type="text" placeholder="Search by name, phone, hall..."
               value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                isDarkMode
+                  ? "bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400"
+                  : "border-gray-300 text-gray-900"
+              }`}
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Show:</label>
+            <label className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>Show:</label>
             <select value={entriesPerPage}
               onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+              className={`border-2 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                isDarkMode ? "bg-gray-700 border-gray-600 text-gray-100" : "border-gray-300 text-gray-900"
+              }`}>
               <option value={10}>10</option>
               <option value={20}>20</option>
               <option value={30}>30</option>
@@ -511,10 +544,10 @@ const ManualPage: React.FC = () => {
         </div>
 
         {/* Results info */}
-        <div className="mb-4 text-sm text-gray-600 flex items-center gap-3">
+        <div className={`mb-4 text-sm flex items-center gap-3 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
           <span>Showing {filteredUsers.length === 0 ? 0 : indexOfFirst + 1} to {Math.min(indexOfLast, filteredUsers.length)} of {filteredUsers.length} users</span>
           {loadingMore && (
-            <span className="flex items-center gap-2 text-green-600 font-medium">
+            <span className="flex items-center gap-2 text-green-500 font-medium">
               <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
               {fetchProgress || "Loading more..."}
             </span>
@@ -522,7 +555,7 @@ const ManualPage: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border-2 border-gray-200 shadow-sm">
+        <div className={`overflow-x-auto rounded-lg border-2 shadow-sm ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}>
           <table className="w-full">
             <thead>
               <tr className="bg-gradient-to-r from-green-500 to-green-600 text-white">
@@ -540,40 +573,52 @@ const ManualPage: React.FC = () => {
               {currentUsers.length > 0 ? (
                 currentUsers.map((user, idx) => (
                   <tr key={user.phone_number || user.id}
-                    className={`${isArrivalDatePassed(user.arrival_date) ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-green-50 transition-colors border-b border-gray-200`}>
+                    className={`border-b transition-colors ${
+                      isDarkMode
+                        ? isArrivalDatePassed(user.arrival_date)
+                          ? "bg-red-900/20 hover:bg-green-900/20 border-gray-700"
+                          : idx % 2 === 0
+                          ? "bg-gray-800 hover:bg-green-900/20 border-gray-700"
+                          : "bg-gray-750 hover:bg-green-900/20 border-gray-700"
+                        : isArrivalDatePassed(user.arrival_date)
+                        ? "bg-red-50 hover:bg-green-50 border-gray-200"
+                        : idx % 2 === 0
+                        ? "bg-white hover:bg-green-50 border-gray-200"
+                        : "bg-gray-50 hover:bg-green-50 border-gray-200"
+                    }`}>
                     <td className="p-4">
-                      <span className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
+                      <span className="flex items-center gap-2 text-orange-500 font-semibold text-sm">
                         <XCircle className="w-4 h-4" /> Not Verified
                       </span>
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                          <User className="w-4 h-4 text-green-600" />
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isDarkMode ? "bg-green-900/40" : "bg-green-100"}`}>
+                          <User className="w-4 h-4 text-green-500" />
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-800">{user.first_name || "N/A"}</p>
-                          <p className="text-xs text-gray-500">{user.gender || "N/A"}</p>
+                          <p className={`font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-800"}`}>{user.first_name || "N/A"}</p>
+                          <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>{user.gender || "N/A"}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-gray-700">{user.phone_number}</td>
+                    <td className={`p-4 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>{user.phone_number}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         {isArrivalDatePassed(user.arrival_date)
-                          ? <Clock    className="w-4 h-4 text-red-500" />
+                          ? <Clock    className="w-4 h-4 text-red-400" />
                           : <Calendar className="w-4 h-4 text-gray-400" />}
-                        <span className={`text-sm ${isArrivalDatePassed(user.arrival_date) ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
+                        <span className={`text-sm ${isArrivalDatePassed(user.arrival_date) ? 'text-red-400 font-semibold' : isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                           {formatArrivalDate(user.arrival_date)}
                         </span>
                       </div>
                       {isArrivalDatePassed(user.arrival_date) && (
-                        <p className="text-xs text-red-500 mt-1">⚠ Overdue</p>
+                        <p className="text-xs text-red-400 mt-1">⚠ Overdue</p>
                       )}
                     </td>
-                    <td className="p-4 text-sm text-gray-800">{user.hall_name || <span className="text-gray-400">Not Allocated</span>}</td>
-                    <td className="p-4 text-sm text-gray-800">{user.floor  || <span className="text-gray-400">—</span>}</td>
-                    <td className="p-4 text-sm text-gray-800">{user.bed_number || <span className="text-gray-400">—</span>}</td>
+                    <td className={`p-4 text-sm ${isDarkMode ? "text-gray-300" : "text-gray-800"}`}>{user.hall_name || <span className={isDarkMode ? "text-gray-500" : "text-gray-400"}>Not Allocated</span>}</td>
+                    <td className={`p-4 text-sm ${isDarkMode ? "text-gray-300" : "text-gray-800"}`}>{user.floor  || <span className={isDarkMode ? "text-gray-500" : "text-gray-400"}>—</span>}</td>
+                    <td className={`p-4 text-sm ${isDarkMode ? "text-gray-300" : "text-gray-800"}`}>{user.bed_number || <span className={isDarkMode ? "text-gray-500" : "text-gray-400"}>—</span>}</td>
                     <td className="p-4">
                       <div className="flex items-center justify-center">
                         {user.hall_name && user.bed_number && (
@@ -592,7 +637,7 @@ const ManualPage: React.FC = () => {
                   <td colSpan={8} className="text-center p-8">
                     <div className="flex flex-col items-center text-gray-400">
                       <CheckCircle className="w-16 h-16 mb-4 text-green-400" />
-                      <p className="text-lg font-medium">All users verified! 🎉</p>
+                      <p className={`text-lg font-medium ${isDarkMode ? "text-gray-300" : ""}`}>All users verified! 🎉</p>
                       <p className="text-sm">No unverified registrations at this time</p>
                     </div>
                   </td>
@@ -604,12 +649,14 @@ const ManualPage: React.FC = () => {
 
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-          <p className="text-gray-600 text-sm">
+          <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
             Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages || 1}</span>
           </p>
           <div className="flex gap-2">
             <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}
-              className="px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed font-medium">
+              className={`px-4 py-2 border-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium ${
+                isDarkMode ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-100"
+              }`}>
               Previous
             </button>
             <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages || totalPages === 0}
@@ -622,7 +669,7 @@ const ManualPage: React.FC = () => {
         {/* Reassign Modal */}
         {selectedUser && reallocateMode === 'reassign' && (
           <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 overflow-y-auto bg-green-800/50">
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8 max-h-[100vh] overflow-y-auto">
+            <div className={`relative rounded-2xl shadow-2xl w-full max-w-4xl my-8 max-h-[100vh] overflow-y-auto ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
               {/* Modal Header */}
               <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl sticky top-0 z-10">
                 <div className="flex justify-between items-center">
@@ -642,15 +689,14 @@ const ManualPage: React.FC = () => {
               <div className="p-6 space-y-6">
                 {/* Phone */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">New User Phone Number <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>New User Phone Number <span className="text-red-500">*</span></label>
                   <input type="tel" value={newUserPhone} onChange={(e) => setNewUserPhone(e.target.value)}
-                    placeholder="Enter 11-digit phone number"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    placeholder="Enter 11-digit phone number" className={inputClass} />
                 </div>
 
                 {/* Profile Picture */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Profile Picture <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>Profile Picture <span className="text-red-500">*</span></label>
                   <div className="flex justify-center mb-4">
                     {previewUrl ? (
                       <div className="relative">
@@ -660,8 +706,8 @@ const ManualPage: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="w-48 h-48 bg-gray-200 border-4 border-dashed border-gray-400 rounded-full flex items-center justify-center">
-                        <p className="text-gray-500 text-center px-4 text-sm">No photo yet</p>
+                      <div className={`w-48 h-48 border-4 border-dashed rounded-full flex items-center justify-center ${isDarkMode ? "bg-gray-700 border-gray-500" : "bg-gray-200 border-gray-400"}`}>
+                        <p className={`text-center px-4 text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>No photo yet</p>
                       </div>
                     )}
                   </div>
@@ -680,17 +726,15 @@ const ManualPage: React.FC = () => {
 
                 {/* First Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">First Name <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>First Name <span className="text-red-500">*</span></label>
                   <input type="text" value={newUserData.first_name || ""} onChange={(e) => handleNewUserFieldChange('first_name', e.target.value)}
-                    placeholder="Enter first name"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    placeholder="Enter first name" className={inputClass} />
                 </div>
 
                 {/* Category */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Category <span className="text-red-500">*</span></label>
-                  <select value={newUserData.category || ""} onChange={(e) => handleNewUserFieldChange('category', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer">
+                  <label className={labelClass}>Category <span className="text-red-500">*</span></label>
+                  <select value={newUserData.category || ""} onChange={(e) => handleNewUserFieldChange('category', e.target.value)} className={selectClass}>
                     <option value="">Select category</option>
                     {categories.map((cat) => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
                   </select>
@@ -698,9 +742,8 @@ const ManualPage: React.FC = () => {
 
                 {/* Age Range */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Age Range <span className="text-red-500">*</span></label>
-                  <select value={newUserData.age_range || ""} onChange={(e) => handleNewUserFieldChange('age_range', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer">
+                  <label className={labelClass}>Age Range <span className="text-red-500">*</span></label>
+                  <select value={newUserData.age_range || ""} onChange={(e) => handleNewUserFieldChange('age_range', e.target.value)} className={selectClass}>
                     <option value="">Select age range</option>
                     {["10-17","18-25","26-35","36-45","46-55","56-65","66-70","71+"].map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
@@ -708,9 +751,8 @@ const ManualPage: React.FC = () => {
 
                 {/* Marital Status */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Marital Status <span className="text-red-500">*</span></label>
-                  <select value={newUserData.marital_status || ""} onChange={(e) => handleNewUserFieldChange('marital_status', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer">
+                  <label className={labelClass}>Marital Status <span className="text-red-500">*</span></label>
+                  <select value={newUserData.marital_status || ""} onChange={(e) => handleNewUserFieldChange('marital_status', e.target.value)} className={selectClass}>
                     <option value="">Select marital status</option>
                     <option value="Single">Single</option>
                     <option value="Married">Married</option>
@@ -721,25 +763,22 @@ const ManualPage: React.FC = () => {
                 {showChildrenFields && (
                   <>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Children</label>
+                      <label className={labelClass}>Number of Children</label>
                       <input type="number" min="1" value={newUserData.no_children || ""}
-                        onChange={(e) => handleNewUserFieldChange('no_children', e.target.value)}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                        onChange={(e) => handleNewUserFieldChange('no_children', e.target.value)} className={inputClass} />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Names of Children</label>
+                      <label className={labelClass}>Names of Children</label>
                       <textarea value={newUserData.names_children || ""} rows={3}
-                        onChange={(e) => handleNewUserFieldChange('names_children', e.target.value)}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                        onChange={(e) => handleNewUserFieldChange('names_children', e.target.value)} className={inputClass} />
                     </div>
                   </>
                 )}
 
                 {/* Country */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Country <span className="text-red-500">*</span></label>
-                  <select value={newUserData.country || ""} onChange={(e) => handleNewUserFieldChange('country', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer">
+                  <label className={labelClass}>Country <span className="text-red-500">*</span></label>
+                  <select value={newUserData.country || ""} onChange={(e) => handleNewUserFieldChange('country', e.target.value)} className={selectClass}>
                     <option value="">Select country</option>
                     {countriesList.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
@@ -747,10 +786,10 @@ const ManualPage: React.FC = () => {
 
                 {/* State */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">State <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>State <span className="text-red-500">*</span></label>
                   <select value={newUserData.state || ""} onChange={(e) => handleNewUserFieldChange('state', e.target.value)}
                     disabled={!newUserData.country}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 cursor-pointer">
+                    className={`${selectClass} disabled:opacity-50 ${isDarkMode ? "disabled:bg-gray-600" : "disabled:bg-gray-100"}`}>
                     <option value="">Select state</option>
                     {newUserData.country && countryStates[newUserData.country]?.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -758,37 +797,33 @@ const ManualPage: React.FC = () => {
 
                 {/* Arrival Date */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Arrival Date <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>Arrival Date <span className="text-red-500">*</span></label>
                   <input type="date" value={newUserData.arrival_date || ""}
-                    onChange={(e) => handleNewUserFieldChange('arrival_date', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    onChange={(e) => handleNewUserFieldChange('arrival_date', e.target.value)} className={inputClass} />
                 </div>
 
                 {/* Local Assembly */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Local Assembly <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>Local Assembly <span className="text-red-500">*</span></label>
                   <input type="text" value={newUserData.local_assembly || ""}
                     onChange={(e) => handleNewUserFieldChange('local_assembly', e.target.value)}
-                    placeholder="Enter local assembly"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    placeholder="Enter local assembly" className={inputClass} />
                 </div>
 
                 {/* Local Assembly Address */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Local Assembly Address <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>Local Assembly Address <span className="text-red-500">*</span></label>
                   <textarea value={newUserData.local_assembly_address || ""} rows={1}
                     onChange={(e) => handleNewUserFieldChange('local_assembly_address', e.target.value)}
-                    placeholder="Enter local assembly address"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    placeholder="Enter local assembly address" className={inputClass} />
                 </div>
 
                 {/* Medical Issues */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Medical Issues (Optional)</label>
+                  <label className={labelClass}>Medical Issues (Optional)</label>
                   <textarea value={newUserData.medical_issues || ""} rows={1}
                     onChange={(e) => handleNewUserFieldChange('medical_issues', e.target.value)}
-                    placeholder="Enter any medical issues; blood pressure concerns etc."
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    placeholder="Enter any medical issues; blood pressure concerns etc." className={inputClass} />
                 </div>
 
                 {/* Buttons */}
@@ -803,7 +838,9 @@ const ManualPage: React.FC = () => {
                     ) : 'Complete Reassignment'}
                   </button>
                   <button onClick={closeModal} disabled={processing}
-                    className="px-6 py-4 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 disabled:opacity-50">
+                    className={`px-6 py-4 font-semibold rounded-lg disabled:opacity-50 ${
+                      isDarkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}>
                     Cancel
                   </button>
                 </div>

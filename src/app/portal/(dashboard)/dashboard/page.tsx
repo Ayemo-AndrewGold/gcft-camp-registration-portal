@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, XCircle, User, Phone, Home, Calendar, AlertCircle, Heart } from "lucide-react";
 
@@ -31,11 +31,26 @@ const Portal: React.FC = () => {
   const [activating, setActivating] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const router = useRouter();
   const BASE_URL =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     "https://gcft-camp.onrender.com/api/v1";
+
+  // ── Dark mode listener ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ isDarkMode: boolean }>;
+      setIsDarkMode(customEvent.detail.isDarkMode);
+    };
+    window.addEventListener("themeToggle", handleThemeChange);
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") setIsDarkMode(true);
+    }
+    return () => window.removeEventListener("themeToggle", handleThemeChange);
+  }, []);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -66,16 +81,14 @@ const Portal: React.FC = () => {
 
       if (res.ok) {
         const data: UserData = await res.json();
-        
-        // Ensure extra_beds is always an array
+
         if (!Array.isArray(data.extra_beds)) {
           data.extra_beds = [];
         }
-        
+
         console.log("User data fetched:", data);
         console.log("Extra beds:", data.extra_beds);
-        
-        // Check if user is verified
+
         try {
           const activeUsersRes = await fetch(`${BASE_URL}/active-users`);
           if (activeUsersRes.ok) {
@@ -139,7 +152,7 @@ const Portal: React.FC = () => {
           ...activatedUser,
           extra_beds: Array.isArray(activatedUser.extra_beds) ? activatedUser.extra_beds : userData.extra_beds
         });
-        
+
         showToast("🎉 User verified successfully!", 'success');
       } else {
         const errorText = await res.text();
@@ -150,7 +163,7 @@ const Portal: React.FC = () => {
         } catch (e) {
           errorMessage = errorText || errorMessage;
         }
-        
+
         showToast(`❌ ${errorMessage}`, 'error');
       }
     } catch (error: any) {
@@ -176,8 +189,8 @@ const Portal: React.FC = () => {
       {toast && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
-            toast.type === 'success' 
-              ? 'bg-green-500 text-white' 
+            toast.type === 'success'
+              ? 'bg-green-500 text-white'
               : 'bg-red-500 text-white'
           }`}>
             {toast.type === 'success' ? (
@@ -229,7 +242,9 @@ const Portal: React.FC = () => {
         </div>
 
         {userData && (
-          <div className="mt-3 sm:mt-8 bg-white rounded-2xl shadow-xl p-6 text-left space-y-4">
+          <div className={`mt-3 sm:mt-8 rounded-2xl shadow-xl p-6 text-left space-y-4 ${
+            isDarkMode ? "bg-gray-800" : "bg-white"
+          }`}>
             {/* Profile Picture */}
             <div className="flex justify-center mb-5">
               {userData.profile_picture_url ? (
@@ -251,33 +266,34 @@ const Portal: React.FC = () => {
                   </div>
                 </button>
               ) : (
-                <div className="sm:w-52 w-32 h-32 sm:h-52 bg-green-200 rounded-full border-4 border-green-600 flex items-center justify-center shadow-xl">
-                  <User className="sm:w-28 w-16 sm:h-28 h-16 text-gray-600" />
+                <div className={`sm:w-52 w-32 h-32 sm:h-52 rounded-full border-4 border-green-600 flex items-center justify-center shadow-xl ${isDarkMode ? "bg-green-900/40" : "bg-green-200"}`}>
+                  <User className={`sm:w-28 w-16 sm:h-28 h-16 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`} />
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between border-b pb-4">
-              <h2 className="text-xl font-bold text-gray-800">User Details</h2>
+            {/* Header row */}
+            <div className={`flex items-center justify-between border-b pb-4 ${isDarkMode ? "border-gray-700" : ""}`}>
+              <h2 className={`text-xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-800"}`}>User Details</h2>
               <div className="flex flex-col items-end gap-1">
                 {userData.hall_name ? (
-                  <span className="flex items-center gap-2 text-green-600 font-semibold">
+                  <span className="flex items-center gap-2 text-green-500 font-semibold">
                     <CheckCircle className="w-5 h-5" />
                     Registered
                   </span>
                 ) : (
-                  <span className="flex items-center gap-2 text-orange-600 font-semibold">
+                  <span className="flex items-center gap-2 text-orange-500 font-semibold">
                     <XCircle className="w-5 h-5" />
                     Incomplete
                   </span>
                 )}
                 {userData.is_active ? (
-                  <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold">
+                  <span className="flex items-center gap-1 text-blue-400 text-sm font-semibold">
                     <CheckCircle className="w-4 h-4" />
                     Verified
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-orange-600 text-sm font-semibold">
+                  <span className="flex items-center gap-1 text-orange-500 text-sm font-semibold">
                     <AlertCircle className="w-4 h-4" />
                     Pending Verification
                   </span>
@@ -285,123 +301,53 @@ const Portal: React.FC = () => {
               </div>
             </div>
 
+            {/* Detail grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-500 mt-1" />
-                <div>
-                  <p className="text-sm text-gray-500">Name</p>
-                  <p className="font-semibold text-gray-800">{userData.first_name}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-gray-500 mt-1" />
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <p className="font-semibold text-gray-800">{userData.phone_number}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 text-gray-500 mt-1 flex items-center justify-center">
-                  <span className="text-sm">📋</span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Category</p>
-                  <p className="font-semibold text-gray-800">{userData.category}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-gray-500 mt-1" />
-                <div>
-                  <p className="text-sm text-gray-500">Arrival Date</p>
-                  <p className="font-semibold text-gray-800">{userData.arrival_date}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                {/* <Heart className="w-5 h-5 text-red-400 mt-1" /> */}
-                <div className="w-5 h-5 text-gray-500 mt-1 flex items-center justify-center">
-                  <span className="text-sm">🩺</span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Medical Issues</p>
-                  <p className="font-semibold text-gray-800">
-                    {userData.medical_issues || "None"}
-                  </p>
-                </div>
-              </div>
-
-              {userData.hall_name && (
-                <>
-                  <div className="flex items-start gap-3">
-                    <Home className="w-5 h-5 text-gray-500 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500">Hall</p>
-                      <p className="font-semibold text-gray-800">{userData.hall_name}</p>
-                    </div>
+              {[
+                { icon: <User className="w-5 h-5" />, label: "Name", value: userData.first_name },
+                { icon: <Phone className="w-5 h-5" />, label: "Phone", value: userData.phone_number },
+                { icon: <span className="text-sm">📋</span>, label: "Category", value: userData.category },
+                { icon: <Calendar className="w-5 h-5" />, label: "Arrival Date", value: userData.arrival_date },
+                { icon: <span className="text-sm">🩺</span>, label: "Medical Issues", value: userData.medical_issues || "None" },
+                ...(userData.hall_name ? [
+                  { icon: <Home className="w-5 h-5" />, label: "Hall", value: userData.hall_name },
+                  { icon: <span className="text-sm">🛏️</span>, label: "Bed", value: `Floor ${userData.floor} - Bed ${userData.bed_number}` },
+                ] : []),
+                { icon: <span className="text-sm">🌍</span>, label: "Location", value: `${userData.state || "N/A"}, ${userData.country}` },
+                { icon: <span className="text-sm">⛪</span>, label: "Assembly", value: userData.local_assembly || "N/A" },
+              ].map(({ icon, label, value }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <div className={`w-5 h-5 mt-1 flex items-center justify-center shrink-0 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    {icon}
                   </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 text-gray-500 mt-1 flex items-center justify-center">
-                      <span className="text-sm">🛏️</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Bed</p>
-                      <p className="font-semibold text-gray-800">
-                        Floor {userData.floor} - Bed {userData.bed_number}
-                      </p>
-                    </div>
+                  <div>
+                    <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
+                    <p className={`font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-800"}`}>{value}</p>
                   </div>
-                </>
-              )}
-
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 text-gray-500 mt-1 flex items-center justify-center">
-                  <span className="text-sm">🌍</span>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-semibold text-gray-800">
-                    {userData.state || "N/A"}, {userData.country}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 text-gray-500 mt-1 flex items-center justify-center">
-                  <span className="text-sm">⛪</span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Assembly</p>
-                  <p className="font-semibold text-gray-800">
-                    {userData.local_assembly || "N/A"}
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* Extra Beds Section - NEW! */}
+            {/* Extra Beds */}
             {userData.extra_beds && userData.extra_beds.length > 0 && (
-              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 mt-4">
+              <div className={`border-2 rounded-lg p-4 mt-4 ${isDarkMode ? "bg-purple-900/20 border-purple-700" : "bg-purple-50 border-purple-200"}`}>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 text-purple-600 flex items-center justify-center">
-                    <span className="text-lg">🛏️</span>
-                  </div>
-                  <h3 className="font-semibold text-purple-900">Extra Beds Assigned</h3>
+                  <span className="text-lg">🛏️</span>
+                  <h3 className={`font-semibold ${isDarkMode ? "text-purple-300" : "text-purple-900"}`}>Extra Beds Assigned</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {userData.extra_beds.map((bed, idx) => (
-                    <span 
-                      key={idx} 
-                      className="inline-block px-3 py-1.5 bg-purple-200 text-purple-800 rounded-lg text-sm font-medium shadow-sm"
+                    <span
+                      key={idx}
+                      className={`inline-block px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm ${
+                        isDarkMode ? "bg-purple-800/50 text-purple-300" : "bg-purple-200 text-purple-800"
+                      }`}
                     >
                       Bed {bed}
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-purple-700 mt-2">
+                <p className={`text-xs mt-2 ${isDarkMode ? "text-purple-400" : "text-purple-700"}`}>
                   This user has been allocated {userData.extra_beds.length} additional bed{userData.extra_beds.length > 1 ? 's' : ''} for nursing mother requirements.
                 </p>
               </div>
@@ -409,7 +355,7 @@ const Portal: React.FC = () => {
 
             {/* Action Buttons */}
             {userData.hall_name && (
-              <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t">
+              <div className={`flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t ${isDarkMode ? "border-gray-700" : ""}`}>
                 {!userData.is_active ? (
                   <button
                     onClick={handleActivateUser}
@@ -429,9 +375,9 @@ const Portal: React.FC = () => {
                     )}
                   </button>
                 ) : (
-                  <div className="flex-1 bg-green-50 border-2 border-green-500 rounded-lg p-3 flex items-center justify-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="font-semibold text-green-800">User Already Verified</span>
+                  <div className={`flex-1 border-2 border-green-500 rounded-lg p-3 flex items-center justify-center gap-2 ${isDarkMode ? "bg-green-900/20" : "bg-green-50"}`}>
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <span className={`font-semibold ${isDarkMode ? "text-green-400" : "text-green-800"}`}>User Already Verified</span>
                   </div>
                 )}
 
@@ -446,16 +392,16 @@ const Portal: React.FC = () => {
             )}
 
             {!userData.hall_name && (
-              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded mt-4">
-                <p className="text-sm text-orange-800">
+              <div className={`border-l-4 border-orange-500 p-4 rounded mt-4 ${isDarkMode ? "bg-orange-900/20" : "bg-orange-50"}`}>
+                <p className={`text-sm ${isDarkMode ? "text-orange-300" : "text-orange-800"}`}>
                   <strong>Note:</strong> This user hasn't completed registration yet. No bed has been allocated.
                 </p>
               </div>
             )}
 
             {userData.hall_name && !userData.is_active && (
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mt-4">
-                <p className="text-sm text-blue-800">
+              <div className={`border-l-4 border-blue-500 p-4 rounded mt-4 ${isDarkMode ? "bg-blue-900/20" : "bg-blue-50"}`}>
+                <p className={`text-sm ${isDarkMode ? "text-blue-300" : "text-blue-800"}`}>
                   <strong>Action Required:</strong> Click "Verify User" to activate this registration and allow the user to access their ticket.
                 </p>
               </div>
