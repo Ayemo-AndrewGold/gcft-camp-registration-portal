@@ -54,6 +54,7 @@ const RegisteredCampersCount: React.FC = () => {
                   "0"
                 )}
               </p>
+              
               <p className="text-[#85C061] text-2xl font-semibold mt-2">
                 Campers Registered
               </p>

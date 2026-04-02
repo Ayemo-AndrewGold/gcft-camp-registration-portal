@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface CountdownProps {
   targetDate: string;
@@ -55,6 +56,25 @@ const Countdown: React.FC<CountdownProps> = ({ targetDate }) => {
 
   return (
     <div className="flex flex-col items-center gap-4 mt-6">
+              <div >
+          <Link href="/register">
+            <button
+              // onClick={handleClick}
+              className="
+                mt-6 sm:mt-8
+                bg-green-500 text-white font-semibold
+                text-base sm:text-lg md:text-xl lg:text-2xl
+                py-3 px-6 sm:py-4 sm:px-8 md:py-5 md:px-10
+                w-full sm:w-auto
+                rounded-lg shadow-lg
+                hover:shadow-green-600/50
+                transition
+              "
+            >
+              Register
+            </button>
+          </Link>
+          </div>
       <h1 className="text-gray-600 text-xl sm:text-2xl font-semibold">
         Camp Meeting Countdown
       </h1>

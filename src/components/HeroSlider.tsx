@@ -2,16 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { FaFacebook, FaLinkedin, FaLinkedinIn, FaYoutube } from 'react-icons/fa';
 import { FaInstagram, FaX } from 'react-icons/fa6';
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast";
 
 const HeroSlider = () => {
-  const handleClick = () => {
-    toast.error(
-      "Registration has closed. Please come to the camp ground for manual registration."
-    );
-  };
+  // const handleClick = () => {
+  //   toast.error(
+  //     "Enter a vilid phone number"
+  //   );
+  // };
   return (
     <section className="relative flex items-center justify-center min-h-screen md:pt-[6rem] bg-black overflow-hidden">
       {/* Background Video or Image */}
@@ -66,23 +67,24 @@ const HeroSlider = () => {
         </p>
 
         <div >
-          <button
-            onClick={handleClick}
-            className="
-              mt-6 sm:mt-8
-              bg-green-500 text-white font-semibold
-              text-base sm:text-lg md:text-xl lg:text-2xl
-              py-3 px-6 sm:py-4 sm:px-8 md:py-5 md:px-10
-              w-full sm:w-auto
-              rounded-lg shadow-lg
-              hover:shadow-green-600/50
-              transition
-              cursor-not-allowed
-            "
-          >
-            Registration has closed
-          </button>
-          <p
+          <Link href="/register">
+            <button
+              // onClick={handleClick}
+              className="
+                mt-6 sm:mt-8
+                bg-green-500 text-white font-semibold
+                text-base sm:text-lg md:text-xl lg:text-2xl
+                py-3 px-6 sm:py-4 sm:px-8 md:py-5 md:px-10
+                w-full sm:w-auto
+                rounded-lg shadow-lg
+                hover:shadow-green-600/50
+                transition
+              "
+            >
+              Register
+            </button>
+          </Link>
+          {/* <p
             className="
               flex items-start sm:items-center gap-2 sm:gap-3
               rounded-lg border border-red-500 bg-red-50
@@ -97,9 +99,28 @@ const HeroSlider = () => {
             <span className="leading-snug sm:leading-normal">
               ⚠️ All further registration will now take place at the camp ground.
             </span>
-        </p>
+        </p> */}
         </div>
       </div>
+              <div >
+          <Link href="/register">
+            <button
+              // onClick={handleClick}
+              className="
+                mt-6 sm:mt-8
+                bg-green-500 text-white font-semibold
+                text-base sm:text-lg md:text-xl lg:text-2xl
+                py-3 px-6 sm:py-4 sm:px-8 md:py-5 md:px-10
+                w-full sm:w-auto
+                rounded-lg shadow-lg
+                hover:shadow-green-600/50
+                transition
+              "
+            >
+              Register
+            </button>
+          </Link>
+          </div>
     </section>
   );
 };
